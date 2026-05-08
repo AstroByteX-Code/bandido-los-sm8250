@@ -588,20 +588,9 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 {
 	struct cpufreq_governor *t;
 
-	if (!strncasecmp(str_governor, "schedutil", CPUFREQ_NAME_LEN)) {
-		/* 
-		 * Ignore requests from init (PID 1) to switch to schedutil,
-		 * redirecting them to Bandido instead.
-		 */
-		if (task_tgid_vnr(current) == 1) {
-			for_each_governor(t) {
-				if (!strncasecmp("Bandido", t->name, CPUFREQ_NAME_LEN)) {
-					pr_info("cpufreq: redirecting 'schedutil' request from init [1] to 'Bandido'\n");
-					return t;
-				}
-			}
-		}
-	}
+	if (!strncasecmp(str_governor, "schedutil", CPUFREQ_NAME_LEN) &&
+	    !strncmp(current->comm, "init.qcom.post_", 15))
+		str_governor = "Bandido";
 
 	for_each_governor(t)
 		if (!strncasecmp(str_governor, t->name, CPUFREQ_NAME_LEN))
