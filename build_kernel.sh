@@ -145,9 +145,6 @@ if [[ -f "$IMAGE" ]]; then
 
 	#is this right? hum
 	adb shell "twrp install /sdcard/$KERNELZIP"
-	adb shell sync
-	sleep 2
-	adb shell reboot
 	echo -e "\a"
 else
 	echo -e "\nERROR. Something broke along the way since $IMAGE is not there\n"
