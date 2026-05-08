@@ -773,6 +773,13 @@ static struct cpufreq_governor bandido_gov = {
 	.limits			= sugov_limits,
 };
 
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_BANDIDO
+struct cpufreq_governor *cpufreq_default_governor(void)
+{
+	return &bandido_gov;
+}
+#endif
+
 static int __init sugov_register(void)
 {
 	return cpufreq_register_governor(&bandido_gov);
