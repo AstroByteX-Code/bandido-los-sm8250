@@ -40,6 +40,38 @@
 #include "pinctrl-msm.h"
 #include "../pinctrl-utils.h"
 
+static int total_pin_count = 0;
+static int msm_gpio_chip_base = 0;
+
+#ifdef CONFIG_MST_LDO
+#define MST_GPIO_D_EN 42
+#define MST_GPIO_D_DATA 43
+#endif
+
+static inline bool msm_gpio_is_valid(int gpionum)
+{
+	if (likely(total_pin_count > 0) && unlikely(gpionum >= total_pin_count))
+		return false;
+
+	if (unlikely(gpionum < 0))
+		return false;
+
+	if (unlikely(gpionum >= CONFIG_SENSORS_FP_SPI_GPIO_START
+			&& gpionum <= CONFIG_SENSORS_FP_SPI_GPIO_END))
+		return false;
+#ifdef CONFIG_ESE_SECURE
+        if (unlikely(gpionum >= CONFIG_ESE_SPI_GPIO_START
+                        && gpionum <= CONFIG_ESE_SPI_GPIO_END))
+                return false;
+#endif
+#ifdef CONFIG_MST_LDO
+	if (unlikely(gpionum == MST_GPIO_D_EN || gpionum == MST_GPIO_D_DATA))
+		return false;
+#endif
+
+	return true;
+}
+
 #ifdef CONFIG_SEC_PM_DEBUG
 #include <linux/sec-pinmux.h>
 #ifdef CONFIG_SEC_GPIO_DVS
@@ -52,8 +84,6 @@
 #define QUP_MASK       GENMASK(5, 0)
 
 #ifdef CONFIG_MST_LDO
-#define MST_GPIO_D_EN 42
-#define MST_GPIO_D_DATA 43
 #endif
 
 /**
@@ -94,8 +124,6 @@ struct msm_pinctrl {
 
 static struct msm_pinctrl *msm_pinctrl_data;
 #ifdef CONFIG_SEC_PM_DEBUG
-static int total_pin_count = 0;
-static int msm_gpio_chip_base = 0;
 #endif /* CONFIG_SEC_PM_DEBUG */
 
 static int msm_get_groups_count(struct pinctrl_dev *pctldev)
@@ -657,27 +685,6 @@ int msm_gp_get_value(struct gpio_chip *chip, uint pin_no, int in_out_type)
 		return (inout_val & BIT(GPIO_OUT_BIT)) >> GPIO_OUT_BIT;
 
 	return 0;
-}
-
-bool msm_gpio_is_valid(int gpionum)
-{
-	if (gpionum < 0 || gpionum >= total_pin_count)
-		return 0;
-
-	if (gpionum >= CONFIG_SENSORS_FP_SPI_GPIO_START
-			&& gpionum <= CONFIG_SENSORS_FP_SPI_GPIO_END)
-		return 0;
-#ifdef CONFIG_ESE_SECURE
-        if (gpionum >= CONFIG_ESE_SPI_GPIO_START
-                        && gpionum <= CONFIG_ESE_SPI_GPIO_END)
-                return 0;
-#endif
-#ifdef CONFIG_MST_LDO
-	if (gpionum == MST_GPIO_D_EN || gpionum == MST_GPIO_D_DATA)
-		return 0;
-#endif
-
-	return 1;
 }
 #endif /* CONFIG_SEC_PM_DEBUG */
 
@@ -1594,8 +1601,8 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 
 	gpiochip_set_chained_irqchip(chip, &pctrl->irq_chip, pctrl->irq,
 				     msm_gpio_irq_handler);
-#ifdef CONFIG_SEC_PM_DEBUG
 	msm_gpio_chip_base = chip->base;
+#ifdef CONFIG_SEC_PM_DEBUG
 #endif /* CONFIG_SEC_PM_DEBUG */
 	return 0;
 fail:
@@ -1833,8 +1840,8 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	pctrl->desc.name = dev_name(&pdev->dev);
 	pctrl->desc.pins = pctrl->soc->pins;
 	pctrl->desc.npins = pctrl->soc->npins;
-#ifdef CONFIG_SEC_PM_DEBUG
 	total_pin_count = pctrl->desc.npins;
+#ifdef CONFIG_SEC_PM_DEBUG
 #endif /* CONFIG_SEC_PM_DEBUG */
 
 	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &pctrl->desc, pctrl);
