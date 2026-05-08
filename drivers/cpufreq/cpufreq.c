@@ -97,6 +97,10 @@ static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
 SRCU_NOTIFIER_HEAD_STATIC(cpufreq_transition_notifier_list);
 
 static int off __read_mostly;
+static bool bandido_lock = true;
+module_param(bandido_lock, bool, 0644);
+MODULE_PARM_DESC(bandido_lock, "Redirect 'schedutil' to 'Bandido' governor (default: true)");
+
 static int cpufreq_disabled(void)
 {
 	return off;
@@ -587,6 +591,24 @@ define_one_global_rw(boost);
 static struct cpufreq_governor *find_governor(const char *str_governor)
 {
 	struct cpufreq_governor *t;
+
+	if (!strncasecmp(str_governor, "schedutil", CPUFREQ_NAME_LEN)) {
+		/* 
+		 * Redirect to Bandido if:
+		 * 1. bandido_lock is manually enabled (default)
+		 * OR
+		 * 2. We are in the first 5 minutes of boot (init script window)
+		 */
+		if (bandido_lock || ktime_get_boot_ns() < 300ULL * NSEC_PER_SEC) {
+			for_each_governor(t) {
+				if (!strncasecmp("Bandido", t->name, CPUFREQ_NAME_LEN)) {
+					pr_info("cpufreq: redirecting 'schedutil' request from %s [%d] to 'Bandido'\n",
+						current->comm, task_tgid_vnr(current));
+					return t;
+				}
+			}
+		}
+	}
 
 	for_each_governor(t)
 		if (!strncasecmp(str_governor, t->name, CPUFREQ_NAME_LEN))

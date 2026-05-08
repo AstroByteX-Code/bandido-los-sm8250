@@ -117,6 +117,22 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
+config CPU_FREQ_DEFAULT_GOV_BANDIDO
+	bool "bandido"
+	depends on SMP
+	select CPU_FREQ_GOV_BANDIDO
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the 'bandido' CPUFreq governor by default.
+
+config CPU_FREQ_DEFAULT_GOV_BANDIDOSAVER
+	bool "bandidosaver"
+	depends on SMP
+	select CPU_FREQ_GOV_BANDIDOSAVER
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the 'bandidosaver' CPUFreq governor by default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -225,6 +241,23 @@ config CPU_FREQ_GOV_SCHEDUTIL
 	  both cases.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_BANDIDO
+	tristate "'bandido' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  Bandido governor is a tuned version of schedutil with 
+	  RTG boost and screen-off optimizations.
+
+config CPU_FREQ_GOV_BANDIDOSAVER
+	tristate "'bandidosaver' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  BandidoSaver governor is a battery-friendly version of schedutil.
 
 comment "CPU frequency scaling drivers"
 
