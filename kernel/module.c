@@ -177,10 +177,12 @@ void sec_debug_coreinfo_module(void)
 	SUMMARY_COREINFO_OFFSET(module, core_layout);
 	SUMMARY_COREINFO_OFFSET(module, state);
 	SUMMARY_COREINFO_OFFSET(module, name);
+#ifdef CONFIG_KALLSYMS
 	SUMMARY_COREINFO_OFFSET(module, kallsyms);
 	SUMMARY_COREINFO_OFFSET(mod_kallsyms, symtab);
 	SUMMARY_COREINFO_OFFSET(mod_kallsyms, num_symtab);
 	SUMMARY_COREINFO_OFFSET(mod_kallsyms, strtab);
+#endif
 }
 #endif
 
