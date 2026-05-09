@@ -76,6 +76,7 @@ struct sugov_cpu {
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 static DEFINE_PER_CPU(struct sugov_tunables *, cached_tunables);
+static unsigned int stale_ns;
 
 /************************ Governor internals ***********************/
 
@@ -370,6 +371,13 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
 		unsigned long j_util, j_max;
+		s64 delta_ns;
+
+		delta_ns = time - j_sg_cpu->last_update;
+		if (delta_ns > stale_ns) {
+			sugov_iowait_reset(j_sg_cpu, time, false);
+			continue;
+		}
 
 		j_util = j_sg_cpu->util;
 		j_max = j_sg_cpu->max;
@@ -415,12 +423,10 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 		return;
 	}
 
-	if (!(flags & SCHED_CPUFREQ_CONTINUE)) {
-		if (sg_policy->policy->fast_switch_enabled)
-			sugov_fast_switch(sg_policy, time, next_f);
-		else
-			sugov_deferred_update(sg_policy, time, next_f);
-	}
+	if (sg_policy->policy->fast_switch_enabled)
+		sugov_fast_switch(sg_policy, time, next_f);
+	else
+		sugov_deferred_update(sg_policy, time, next_f);
 
 	raw_spin_unlock(&sg_policy->update_lock);
 }
@@ -640,6 +646,8 @@ static int sugov_init(struct cpufreq_policy *policy)
 				   bandido_gov.name);
 	if (ret)
 		goto fail;
+
+	stale_ns = sched_ravg_window + (sched_ravg_window >> 3);
 
 out:
 	mutex_unlock(&global_tunables_lock);
