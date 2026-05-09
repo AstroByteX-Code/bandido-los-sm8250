@@ -470,7 +470,7 @@ export CFLAGS_KASAN CFLAGS_KASAN_NOSANITIZE CFLAGS_UBSAN
 export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
-export KBUILD_ARFLAGS
+export KBUILD_ARFLAGS BOPTS BOPTS2
 
 # When compiling out-of-tree modules, put MODVERDIR in the module
 # tree rather than in the kernel tree. The kernel tree might
@@ -662,6 +662,8 @@ ifdef CONFIG_LTO_CLANG
 LLVM_AR		:= llvm-ar
 LLVM_NM		:= llvm-nm
 export LLVM_AR LLVM_NM
+LDFINAL		:= $(LD)
+export LDFINAL
 endif
 
 # The arch Makefile can set ARCH_{CPP,A,C}FLAGS to override the default
@@ -714,10 +716,123 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS   += -Os
+OFLAGS := -O3 -ffast-math -fsingle-precision-constant \
+	 -fira-hoist-pressure -fira-loop-pressure -fmodulo-sched \
+	 -fmodulo-sched-allow-regmoves -ftree-lrs -floop-interchange \
+	 -ftree-loop-linear -fgcse-after-reload -fgcse-las -fgcse-sm \
+	 -freorder-blocks-algorithm=stc -mlow-precision-div -mlow-precision-sqrt
+
+GCCPAR += --param dse-max-alias-queries-per-store=256000
+GCCPAR += --param dse-max-object-size=256000
+GCCPAR += --param graphite-max-arrays-per-scop=100000
+GCCPAR += --param graphite-max-nb-scop-params=10000
+GCCPAR += --param ira-max-conflict-table-size=100000
+GCCPAR += --param ira-max-loops-num=100000
+GCCPAR += --param loop-invariant-max-bbs-in-loop=500000
+GCCPAR += --param loop-max-datarefs-for-datadeps=100000
+GCCPAR += --param lra-max-considered-reload-pseudos=500000
+GCCPAR += --param max-crossjump-edges=100000
+GCCPAR += --param max-cse-insns=100000
+GCCPAR += --param max-cselib-memory-locations=500000
+GCCPAR += --param max-delay-slot-insn-search=500000
+GCCPAR += --param max-delay-slot-live-search=500000
+GCCPAR += --param max-dse-active-local-stores=500000
+GCCPAR += --param max-iterations-computation-cost=500000
+GCCPAR += --param max-iterations-to-track=500000
+GCCPAR += --param max-last-value-rtl=500000
+GCCPAR += --param max-modulo-backtrack-attempts=125000
+GCCPAR += --param max-pending-list-length=125000
+GCCPAR += --param max-pipeline-region-blocks=6250
+GCCPAR += --param max-pipeline-region-insns=6250
+GCCPAR += --param max-reload-search-insns=125000
+GCCPAR += --param max-sched-region-blocks=40
+GCCPAR += --param max-sched-region-insns=100000
+GCCPAR += --param max-ssa-name-query-depth=10
+GCCPAR += --param max-stores-to-merge=65536
+GCCPAR += --param max-store-chains-to-track=65536
+GCCPAR += --param max-stores-to-track=1048576
+GCCPAR += --param max-hoist-depth=0
+GCCPAR += --param max-tail-merge-comparisons=30000
+GCCPAR += --param max-tail-merge-iterations=100
+GCCPAR += --param max-vartrack-size=0
+GCCPAR += --param sccvn-max-alias-queries-per-access=500000
+GCCPAR += --param scev-max-expr-complexity=500000
+GCCPAR += --param scev-max-expr-size=500000
+GCCPAR += --param selsched-insns-to-rename=2000
+GCCPAR += --param selsched-max-lookahead=5000
+GCCPAR += --param selsched-max-sched-times=65536
+GCCPAR += --param l1-cache-line-size=64
+GCCPAR += --param l1-cache-size=32
+GCCPAR += --param l2-cache-size=4096
+GCCPAR += --param early-inlining-insns=2
+GCCPAR += --param max-inline-insns-small=2
+GCCPAR += --param max-inline-insns-size=2
+GCCPAR += --param max-inline-insns-single=70
+GCCPAR += --param inline-min-speedup=30
+GCCPAR += --param inline-unit-growth=1000
+GCCPAR += --param ipa-cp-unit-growth=50
+GCCPAR += --param min-crossjump-insns=10
+GCCPAR += --param inline-heuristics-hint-percent=200
+GCCPAR += --param large-function-insns=800
+GCCPAR += --param large-function-growth=20
+GCCPAR += --param large-stack-frame-growth=400
+
+ifdef CONFIG_CC_IS_CLANG
+# 1. Define all optimization blocks first
+ifeq ($(call cc-option,-mllvm -polly),-mllvm -polly)
+POLLY := -mllvm -polly \
+  -mllvm -polly-run-dce \
+  -mllvm -polly-run-inliner \
+  -mllvm -polly-isl-arg=--no-schedule-serialize-sccs \
+  -mllvm -polly-detect-keep-going \
+  -mllvm -polly-vectorizer=stripmine \
+  -mllvm -polly-dependences-computeout=0
+endif
+
+LLVMPARAMS := \
+  -mllvm -inlinecold-threshold=2 \
+  -mllvm -inline-threshold=40 \
+  -mllvm -inlinehint-threshold=300 \
+  -mllvm -inline-cold-callsite-threshold=2 \
+  -mllvm -locally-hot-callsite-threshold=50 \
+  -mllvm -inline-enable-cost-benefit-analysis=true \
+  -mllvm -enable-loop-distribute=true \
+  -mllvm -enable-gvn-hoist \
+  -mllvm -enable-misched \
+  -mllvm -enable-loopinterchange=true \
+  -mllvm -enable-loop-flatten=true \
+  -mllvm --enable-loop-distribute=true
+
+LLVMPARAMS_LINK := \
+  -mllvm -enable-merge-functions=true \
+  -mllvm -enable-machine-outliner
+
+COPTS := -Os -ffast-math -falign-functions=1 -falign-loops=1 \
+	$(POLLY) $(LLVMPARAMS)
+
+KBUILD_CFLAGS += $(COPTS)
+LDFINAL += $(POLLY) $(LLVMPARAMS) $(LLVMPARAMS_LINK)
+export LDFINAL
+
+BOPTS := -O2 -falign-functions=16 -falign-loops=16
+BOPTS2 := -O3 -falign-functions=32 -falign-loops=32 \
+  -mllvm -enable-unroll-and-jam=true
+
+ifeq ($(CONFIG_PGO_CLANG), y)
+KBUILD_LDFLAGS  += -mllvm --cs-profile-generate
+endif
+ifeq ($(CONFIG_PGOUSE_CLANG), y)
+KBUILD_CFLAGS   += -fprofile-use=vmlinux.profdata
+KBUILD_LDFLAGS  += --lto-cs-profile-file=vmlinux.profdata
+LLVMPARAMS      += -mllvm -import-critical-multiplier=2 #100
+LLVMPARAMS      += -mllvm -import-hot-multiplier=1 #10
+LLVMPARAMS      += -mllvm -import-cold-multiplier=0 #0
+LLVMPARAMS      += -mllvm -import-instr-evolution-factor=0.7 #0.7
+LLVMPARAMS      += -mllvm -hot-callsite-threshold=800 #3000 PGO-specific noneedrebuild
+endif
+
 else
-KBUILD_CFLAGS   += -O2
+KBUILD_CFLAGS += $(OFLAGS) $(GCCPAR)
 endif
 
 ifdef CONFIG_CC_WERROR
@@ -888,16 +1003,18 @@ LDFLAGS_vmlinux += --gc-sections
 endif
 
 ifdef CONFIG_LTO_CLANG
+ifeq ($(CONFIG_LD_IS_LLD), y)
+KBUILD_LDFLAGS += -O3 --lto-O3 --strip-debug
+endif
 ifdef CONFIG_THINLTO
 lto-clang-flags	:= -flto=thin
 KBUILD_LDFLAGS	+= --thinlto-cache-dir=.thinlto-cache
+# Limit inlining across translation units to reduce binary size
+LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=5
 else
 lto-clang-flags	:= -flto
 endif
 lto-clang-flags += -fvisibility=default $(call cc-option, -fsplit-lto-unit)
-
-# Limit inlining across translation units to reduce binary size
-LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=5
 
 KBUILD_LDFLAGS += $(LD_FLAGS_LTO_CLANG)
 KBUILD_LDFLAGS_MODULE += $(LD_FLAGS_LTO_CLANG)
