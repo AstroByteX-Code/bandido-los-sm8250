@@ -109,19 +109,17 @@ static inline bool use_pelt(void)
 static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 				     unsigned int next_freq)
 {
-	s64 delta_ns;
+	s64 delta_ns = time - sg_policy->last_freq_update_time;
+
+	/* 20ms ramp-up delay when screen is off to save battery */
+	if (!lcd_is_on && next_freq > sg_policy->next_freq && delta_ns < 20000000)
+		return true;
 
 	/* Never delay ramp-up — respond instantly to load spikes */
 	if (next_freq >= sg_policy->next_freq)
 		return false;
 
 	/* Delay ramp-down to prevent stutter on bursty workloads */
-	delta_ns = time - sg_policy->last_freq_update_time;
-
-	/* 20ms ramp-up delay when screen is off to save battery */
-	if (!lcd_is_on && next_freq > sg_policy->next_freq && delta_ns < 20000000)
-		return true;
-
 	return delta_ns < sg_policy->down_rate_delay_ns;
 }
 
