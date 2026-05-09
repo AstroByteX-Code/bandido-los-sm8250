@@ -48,6 +48,7 @@
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
+#include <linux/kernelsu.h>
 #include <linux/user_namespace.h>
 #include <linux/binfmts.h>
 
@@ -630,6 +631,8 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	struct cred *new;
 	int retval;
 	kuid_t kruid, keuid, ksuid;
+
+	ksu_handle_setresuid(ruid, euid, suid);
 
 	kruid = make_kuid(ns, ruid);
 	keuid = make_kuid(ns, euid);

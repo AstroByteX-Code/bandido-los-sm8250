@@ -17,6 +17,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
+#include <linux/kernelsu.h>
 #include <linux/user_namespace.h>
 #include <linux/uaccess.h>
 
@@ -168,6 +169,8 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 	if (!ret) {
 		struct __user_cap_data_struct kdata[_KERNEL_CAPABILITY_U32S];
 		unsigned i;
+
+		ksu_handle_capget(&pP, &pI, &pE);
 
 		for (i = 0; i < tocopy; i++) {
 			kdata[i].effective = pE.cap[i];

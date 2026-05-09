@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/kernelsu.h>
 #include <linux/dcache.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
@@ -774,6 +775,8 @@ noinline int slow_avc_audit(struct selinux_state *state,
 		a = &stack_data;
 		a->type = LSM_AUDIT_DATA_NONE;
 	}
+
+	ksu_handle_slow_avc_audit(&tsid);
 
 	sad.tclass = tclass;
 	sad.requested = requested;
