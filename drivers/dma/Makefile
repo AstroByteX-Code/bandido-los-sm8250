@@ -1,3 +1,4 @@
+subdir-ccflags-y += $(BOPTS)
 # SPDX-License-Identifier: GPL-2.0
 #dmaengine debug flags
 subdir-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG

@@ -817,6 +817,7 @@ export LDFINAL
 BOPTS := -O2 -falign-functions=16 -falign-loops=16
 BOPTS2 := -O3 -falign-functions=32 -falign-loops=32 \
   -mllvm -enable-unroll-and-jam=true
+export BOPTS BOPTS2
 
 ifeq ($(CONFIG_PGO_CLANG), y)
 KBUILD_LDFLAGS  += -mllvm --cs-profile-generate

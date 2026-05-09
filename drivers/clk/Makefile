@@ -1,3 +1,4 @@
+subdir-ccflags-y += $(BOPTS)
 # SPDX-License-Identifier: GPL-2.0
 # common clock types
 obj-$(CONFIG_HAVE_CLK)		+= clk-devres.o clk-bulk.o

@@ -1,3 +1,4 @@
+subdir-ccflags-y += $(BOPTS2)
 #
 # linux/arch/arm64/crypto/Makefile
 #
