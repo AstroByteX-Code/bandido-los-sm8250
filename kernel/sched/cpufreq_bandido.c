@@ -38,14 +38,6 @@ struct sugov_policy {
 	unsigned int		cached_raw_freq;
 	unsigned int		prev_cached_raw_freq;
 
-	/* The next fields are only needed if fast switch cannot be used: */
-	struct			irq_work irq_work;
-	struct			kthread_work work;
-	struct			kthread_worker worker;
-	struct task_struct	*thread;
-	bool			work_in_progress;
-
-	struct			mutex work_lock;
 	bool			limits_changed;
 	bool			need_freq_update;
 };
@@ -109,17 +101,19 @@ static inline bool use_pelt(void)
 static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 				     unsigned int next_freq)
 {
-	s64 delta_ns = time - sg_policy->last_freq_update_time;
-
-	/* 20ms ramp-up delay when screen is off to save battery */
-	if (!lcd_is_on && next_freq > sg_policy->next_freq && delta_ns < 20000000)
-		return true;
+	s64 delta_ns;
 
 	/* Never delay ramp-up — respond instantly to load spikes */
 	if (next_freq >= sg_policy->next_freq)
 		return false;
 
 	/* Delay ramp-down to prevent stutter on bursty workloads */
+	delta_ns = time - sg_policy->last_freq_update_time;
+
+	/* 20ms ramp-up delay when screen is off to save battery */
+	if (!lcd_is_on && next_freq > sg_policy->next_freq && delta_ns < 20000000)
+		return true;
+
 	return delta_ns < sg_policy->down_rate_delay_ns;
 }
 
@@ -145,6 +139,7 @@ static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 			      unsigned int next_freq)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
+	unsigned int cpu;
 
 	if (!sugov_update_next_freq(sg_policy, time, next_freq))
 		return;
@@ -154,17 +149,11 @@ static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 		return;
 
 	policy->cur = next_freq;
-}
 
-static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
-				  unsigned int next_freq)
-{
-	if (!sugov_update_next_freq(sg_policy, time, next_freq))
-		return;
-
-	if (use_pelt())
-		sg_policy->work_in_progress = true;
-	irq_work_queue(&sg_policy->irq_work);
+	if (trace_cpu_frequency_enabled()) {
+		for_each_cpu(cpu, policy->cpus)
+			trace_cpu_frequency(next_freq, cpu);
+	}
 }
 
 static unsigned long bandido_map_util_freq(unsigned long util,
@@ -180,7 +169,9 @@ static unsigned long bandido_map_util_freq(unsigned long util,
 	/* Optimized 1.125x multiplier (util + 12.5% headroom) for balanced performance */
 	next_f = (freq + (freq >> 3)) * util / cap;
 
-	/* RTG Boost: SOFTENED jump to ~56% of max frequency for UI fluidity. */
+	/* RTG Boost: SOFTENED jump to ~56% of max frequency for UI fluidity.
+	 * Use as a floor to ensure fluidity without capping performance under load.
+	 */
 	if (sg_cpu->walt_load.rtgb_active) {
 		unsigned long boost_f = (freq + (freq >> 3)) >> 1;
 		if (boost_f > next_f)
@@ -340,23 +331,26 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
 	next_f = get_next_freq(sg_policy, util, max);
 
+	/*
+	 * Busy protection: Do not reduce frequency if the CPU has not been
+	 * idle recently, UNLESS 1ms has already passed since the last update.
+	 */
 	if (busy && next_f < sg_policy->next_freq && (time - sg_policy->last_freq_update_time) < 1000000) {
 		next_f = sg_policy->next_freq;
 		sg_policy->cached_raw_freq = 0;
 	}
 
+	/*
+	 * Fast-Ramp: Bypass the rate limit if the next frequency is
+	 * significantly higher (>20% jump) than the current one,
+	 * OR if RTG Boost is active (prioritizing GUI responsiveness).
+	 */
 	if (!sugov_should_update_freq(sg_policy, time) &&
 	    next_f < (sg_policy->next_freq + (sg_policy->next_freq / 5)) &&
 	    !sg_cpu->walt_load.rtgb_active)
 		return;
 
-	if (unlikely(sg_policy->policy->fast_switch_enabled)) {
-		sugov_fast_switch(sg_policy, time, next_f);
-	} else {
-		raw_spin_lock(&sg_policy->update_lock);
-		sugov_deferred_update(sg_policy, time, next_f);
-		raw_spin_unlock(&sg_policy->update_lock);
-	}
+	sugov_fast_switch(sg_policy, time, next_f);
 }
 
 static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
@@ -369,13 +363,6 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
 		unsigned long j_util, j_max;
-		s64 delta_ns;
-
-		delta_ns = time - j_sg_cpu->last_update;
-		if (delta_ns > stale_ns) {
-			sugov_iowait_reset(j_sg_cpu, time, false);
-			continue;
-		}
 
 		j_util = j_sg_cpu->util;
 		j_max = j_sg_cpu->max;
@@ -408,12 +395,21 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 
 	next_f = sugov_next_freq_shared(sg_cpu, time);
 
+	/*
+	 * Busy protection shared: avoid ramp-down if core is saturated and < 1ms holds.
+	 * This prevents premature frequency drops during bursty but busy periods.
+	 */
 	if (sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq && 
 	    (time - sg_policy->last_freq_update_time) < 1000000) {
 		next_f = sg_policy->next_freq;
 		sg_policy->cached_raw_freq = 0;
 	}
 
+	/*
+	 * Fast-Ramp Shared: Bypass the rate limit if the next frequency is
+	 * significantly higher (>20% jump) than the current one,
+	 * OR if RTG Boost is active (prioritizing GUI responsiveness).
+	 */
 	if (!sugov_should_update_freq(sg_policy, time) &&
 	    next_f < (sg_policy->next_freq + (sg_policy->next_freq / 5)) &&
 	    !sg_cpu->walt_load.rtgb_active) {
@@ -421,31 +417,9 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 		return;
 	}
 
-	if (sg_policy->policy->fast_switch_enabled)
-		sugov_fast_switch(sg_policy, time, next_f);
-	else
-		sugov_deferred_update(sg_policy, time, next_f);
+	sugov_fast_switch(sg_policy, time, next_f);
 
 	raw_spin_unlock(&sg_policy->update_lock);
-}
-
-static void sugov_work(struct kthread_work *work)
-{
-	struct sugov_policy *sg_policy = container_of(work, struct sugov_policy, work);
-
-	mutex_lock(&sg_policy->work_lock);
-	__cpufreq_driver_target(sg_policy->policy, sg_policy->next_freq,
-				CPUFREQ_RELATION_L);
-	mutex_unlock(&sg_policy->work_lock);
-}
-
-static void sugov_irq_work(struct irq_work *irq_work)
-{
-	struct sugov_policy *sg_policy;
-
-	sg_policy = container_of(irq_work, struct sugov_policy, irq_work);
-
-	kthread_queue_work(&sg_policy->worker, &sg_policy->work);
 }
 
 /************************** sysfs interface ************************/
@@ -500,53 +474,6 @@ static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
 static void sugov_policy_free(struct sugov_policy *sg_policy)
 {
 	kfree(sg_policy);
-}
-
-static int sugov_kthread_create(struct sugov_policy *sg_policy)
-{
-	struct task_struct *thread;
-	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
-	struct cpufreq_policy *policy = sg_policy->policy;
-	int ret;
-
-	if (policy->fast_switch_enabled)
-		return 0;
-
-	kthread_init_work(&sg_policy->work, sugov_work);
-	kthread_init_worker(&sg_policy->worker);
-	thread = kthread_create(kthread_worker_fn, &sg_policy->worker,
-				"sugov:%d",
-				cpumask_first(policy->related_cpus));
-	if (IS_ERR(thread)) {
-		pr_err("failed to create sugov thread: %ld\n", PTR_ERR(thread));
-		return PTR_ERR(thread);
-	}
-
-	ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
-	if (ret) {
-		kthread_stop(thread);
-		pr_warn("%s: failed to set SCHED_FIFO\n", __func__);
-		return ret;
-	}
-
-	sg_policy->thread = thread;
-	kthread_bind_mask(thread, policy->related_cpus);
-	init_irq_work(&sg_policy->irq_work, sugov_irq_work);
-	mutex_init(&sg_policy->work_lock);
-
-	wake_up_process(thread);
-
-	return 0;
-}
-
-static void sugov_kthread_stop(struct sugov_policy *sg_policy)
-{
-	if (sg_policy->policy->fast_switch_enabled)
-		return;
-
-	kthread_flush_worker(&sg_policy->worker);
-	kthread_stop(sg_policy->thread);
-	mutex_destroy(&sg_policy->work_lock);
 }
 
 static struct sugov_tunables *sugov_tunables_alloc(struct sugov_policy *sg_policy)
@@ -610,16 +537,12 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto disable_fast_switch;
 	}
 
-	ret = sugov_kthread_create(sg_policy);
-	if (ret)
-		goto free_sg_policy;
-
 	mutex_lock(&global_tunables_lock);
 
 	if (global_tunables) {
 		if (WARN_ON(have_governor_per_policy())) {
 			ret = -EINVAL;
-			goto stop_kthread;
+			goto free_sg_policy;
 		}
 		policy->governor_data = sg_policy;
 		sg_policy->tunables = global_tunables;
@@ -631,7 +554,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 	tunables = sugov_tunables_alloc(sg_policy);
 	if (!tunables) {
 		ret = -ENOMEM;
-		goto stop_kthread;
+		goto free_sg_policy;
 	}
 
 	policy->governor_data = sg_policy;
@@ -656,11 +579,8 @@ fail:
 	policy->governor_data = NULL;
 	sugov_clear_global_tunables();
 
-stop_kthread:
-	sugov_kthread_stop(sg_policy);
-	mutex_unlock(&global_tunables_lock);
-
 free_sg_policy:
+	mutex_unlock(&global_tunables_lock);
 	sugov_policy_free(sg_policy);
 
 disable_fast_switch:
@@ -687,7 +607,6 @@ static void sugov_exit(struct cpufreq_policy *policy)
 
 	mutex_unlock(&global_tunables_lock);
 
-	sugov_kthread_stop(sg_policy);
 	sugov_policy_free(sg_policy);
 	cpufreq_disable_fast_switch(policy);
 }
@@ -700,7 +619,6 @@ static int sugov_start(struct cpufreq_policy *policy)
 	update_min_rate_limit_ns(sg_policy);
 	sg_policy->last_freq_update_time	= 0;
 	sg_policy->next_freq			= 0;
-	sg_policy->work_in_progress		= false;
 	sg_policy->limits_changed		= false;
 	sg_policy->need_freq_update		= false;
 	sg_policy->cached_raw_freq		= 0;
@@ -737,11 +655,6 @@ static void sugov_stop(struct cpufreq_policy *policy)
 		cpufreq_remove_update_util_hook(cpu);
 
 	synchronize_sched();
-
-	if (!policy->fast_switch_enabled) {
-		irq_work_sync(&sg_policy->irq_work);
-		kthread_cancel_work_sync(&sg_policy->work);
-	}
 }
 
 static void sugov_limits(struct cpufreq_policy *policy)
@@ -750,20 +663,16 @@ static void sugov_limits(struct cpufreq_policy *policy)
 	unsigned long flags, now;
 	unsigned int freq;
 
-	if (!policy->fast_switch_enabled) {
-		mutex_lock(&sg_policy->work_lock);
-		cpufreq_policy_apply_limits(policy);
-		mutex_unlock(&sg_policy->work_lock);
-	} else {
-		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
-		freq = policy->cur;
-		now = ktime_get_ns();
+	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
+	freq = policy->cur;
+	now = ktime_get_ns();
 
-		freq = cpufreq_driver_resolve_freq(policy, freq);
-		sg_policy->cached_raw_freq = freq;
-		sugov_fast_switch(sg_policy, now, freq);
-		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
-	}
+	freq = cpufreq_driver_resolve_freq(policy, freq);
+	sg_policy->cached_raw_freq = freq;
+
+	sugov_fast_switch(sg_policy, now, freq);
+
+	raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 
 	sg_policy->limits_changed = true;
 }
