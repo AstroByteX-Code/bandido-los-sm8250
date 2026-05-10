@@ -28,7 +28,7 @@
 
 void summary_coreinfo_append_str(const char *fmt, ...);
 
-#ifdef CONFIG_SEC_DEBUG_MODULE_INFO
+#if defined(CONFIG_SEC_DEBUG_MODULE_INFO) && defined(CONFIG_MODULES)
 #ifdef CONFIG_MODULES_TREE_LOOKUP
 extern void sec_debug_coreinfo_module(void);
 #endif
