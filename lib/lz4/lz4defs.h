@@ -167,7 +167,7 @@ static FORCE_INLINE void LZ4_copy8(void *dst, const void *src)
  * customized variant of memcpy,
  * which can overwrite up to 7 bytes beyond dstEnd
  */
-static FORCE_INLINE void LZ4_wildCopy(void *dstPtr,
+static FORCE_INLINE void LZ4_wildCopy8(void *dstPtr,
 	const void *srcPtr, void *dstEnd)
 {
 	BYTE *d = (BYTE *)dstPtr;
@@ -229,6 +229,39 @@ static FORCE_INLINE unsigned int LZ4_count(
 		pIn++;
 
 	return (unsigned int)(pIn - pStart);
+}
+
+/* Read the variable-length literal or match length.
+ *
+ * ip - pointer to use as input.
+ * lencheck - end ip.  Return an error if ip advances >= lencheck.
+ * loop_check - check ip >= lencheck in body of loop.  Returns loop_error if so.
+ * initial_check - check ip >= lencheck before start of loop.  Returns initial_error if so.
+ * error (output) - error code.  Should be set to 0 before call.
+ */
+typedef enum { loop_error = -2, initial_error = -1, ok = 0} variable_length_error;
+static FORCE_INLINE unsigned read_variable_length(const BYTE **ip,
+					   const BYTE *lencheck,
+					   int loop_check, int initial_check,
+					   variable_length_error *error)
+{
+	unsigned length = 0;
+	unsigned s;
+	if (initial_check && unlikely((*ip) >= lencheck)) {	/* overflow detection */
+		*error = initial_error;
+		return length;
+	}
+	do {
+		s = **ip;
+		(*ip)++;
+		length += s;
+		if (loop_check && unlikely((*ip) >= lencheck)) {	/* overflow detection */
+			*error = loop_error;
+			return length;
+		}
+	} while (s == 255);
+
+	return length;
 }
 
 typedef enum { noLimit = 0, limitedOutput = 1 } limitedOutput_directive;
