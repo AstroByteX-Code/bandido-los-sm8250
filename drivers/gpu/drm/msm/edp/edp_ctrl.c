@@ -1146,7 +1146,7 @@ int msm_edp_ctrl_init(struct msm_edp *edp)
 	init_completion(&ctrl->idle_comp);
 
 	/* setup workqueue */
-	ctrl->workqueue = alloc_ordered_workqueue("edp_drm_work", 0);
+	ctrl->workqueue = alloc_ordered_workqueue("edp_drm_work", WQ_HIGHPRI);
 	INIT_WORK(&ctrl->on_work, edp_ctrl_on_worker);
 	INIT_WORK(&ctrl->off_work, edp_ctrl_off_worker);
 

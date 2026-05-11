@@ -253,7 +253,7 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", 0);
+	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", WQ_HIGHPRI);
 	if (!hdmi->workq) {
 		ret = -ENOMEM;
 		goto fail;

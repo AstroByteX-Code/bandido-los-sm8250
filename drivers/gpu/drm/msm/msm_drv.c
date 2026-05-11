@@ -498,7 +498,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	mdss = priv->mdss;
 
-	priv->wq = alloc_ordered_workqueue("msm", 0);
+	/* Use HIGHPRI for the main DRM workqueue to ensure display commits are not delayed */
+	priv->wq = alloc_ordered_workqueue("msm", WQ_HIGHPRI);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
@@ -576,7 +577,11 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	 * realtime scheduling to process display updates and interact with
 	 * other real time and normal priority task
 	 */
-	param.sched_priority = 16;
+	/*
+	 * Increase priority to 24 to ensure display updates are prioritized over
+	 * most other real-time tasks, while remaining safe for boot initialization.
+	 */
+	param.sched_priority = 24;
 	for (i = 0; i < priv->num_crtcs; i++) {
 
 		/* initialize display thread */
