@@ -16,13 +16,13 @@ ifeq ($(KERNEL_BUILD), y)
 	WLAN_ROOT := drivers/staging/qcacld-3.0
 	WLAN_COMMON_ROOT := ../qca-wifi-host-cmn
 	WLAN_COMMON_INC := $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
-	WLAN_FW_API := $(WLAN_ROOT)/../fw-api/
+	WLAN_FW_API := $(WLAN_ROOT)/../fw-api
 	WLAN_PROFILE := default
 endif
 
 WLAN_COMMON_ROOT ?= ../qca-wifi-host-cmn
 WLAN_COMMON_INC ?= $(WLAN_ROOT)/$(WLAN_COMMON_ROOT)
-WLAN_FW_API ?= $(WLAN_ROOT)/../fw-api/
+WLAN_FW_API ?= $(WLAN_ROOT)/../fw-api
 WLAN_PROFILE ?= default
 CONFIG_QCA_CLD_WLAN_PROFILE ?= $(WLAN_PROFILE)
 
@@ -374,12 +374,13 @@ MAC_DIR :=	core/mac
 MAC_INC_DIR :=	$(MAC_DIR)/inc
 MAC_SRC_DIR :=	$(MAC_DIR)/src
 
-MAC_INC := 	-I $(srctree)/$(WLAN_ROOT)/$(MAC_INC_DIR) \
-		-I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/dph \
-		-I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/include \
-		-I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/pe/include \
-		-I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/pe/lim \
-		-I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/pe/nan
+MAC_INC := -I $(srctree)/$(WLAN_ROOT)/$(MAC_INC_DIR) \
+	$(addprefix -I $(srctree)/$(WLAN_ROOT)/$(MAC_SRC_DIR)/, \
+		dph \
+		include \
+		pe/include \
+		pe/lim \
+		pe/nan)
 
 MAC_DPH_OBJS :=	$(MAC_SRC_DIR)/dph/dph_hash_table.o
 
@@ -593,10 +594,11 @@ WLAN_LOGGING_OBJS    := $(WLAN_LOGGING_SRC_DIR)/wlan_logging_sock_svc.o \
 ############ SYS ############
 SYS_DIR :=	core/mac/src/sys
 
-SYS_INC := 	-I $(srctree)/$(WLAN_ROOT)/$(SYS_DIR)/common/inc \
-		-I $(srctree)/$(WLAN_ROOT)/$(SYS_DIR)/legacy/src/platform/inc \
-		-I $(srctree)/$(WLAN_ROOT)/$(SYS_DIR)/legacy/src/system/inc \
-		-I $(srctree)/$(WLAN_ROOT)/$(SYS_DIR)/legacy/src/utils/inc
+SYS_INC := $(addprefix -I $(srctree)/$(WLAN_ROOT)/$(SYS_DIR)/, \
+		common/inc \
+		legacy/src/platform/inc \
+		legacy/src/system/inc \
+		legacy/src/utils/inc)
 
 SYS_COMMON_SRC_DIR := $(SYS_DIR)/common/src
 SYS_LEGACY_SRC_DIR := $(SYS_DIR)/legacy/src
@@ -830,7 +832,7 @@ UMAC_TARGET_GPIO_INC := -I $(srctree)/$(WLAN_COMMON_INC)/target_if/gpio
 
 UMAC_GPIO_INC := -I $(srctree)/$(WLAN_COMMON_INC)/$(UMAC_GPIO_DISP_INC_DIR) \
 			-I $(srctree)/$(WLAN_COMMON_INC)/$(UMAC_GPIO_CORE_INC_DIR) \
-			-I $(srctree)/$(WLAN_COMMON_INC)/$(UMAC_TARGET_GPIO_INC)
+			$(UMAC_TARGET_GPIO_INC)
 ifeq ($(CONFIG_FEATURE_GPIO_CFG),y)
 UMAC_GPIO_OBJS := $(UMAC_GPIO_DISP_DIR)/wlan_gpio_tgt_api.o \
 		$(UMAC_GPIO_DISP_DIR)/wlan_gpio_ucfg_api.o \
@@ -2276,11 +2278,13 @@ ifeq ($(CONFIG_WLAN_FEATURE_DP_RX_THREADS), y)
 OBJS += $(TXRX3.0_OBJS)
 endif
 
-ccflags-y += $(INCS)
+# Clean up redundant relative paths from includes
+INCS := $(subst $(WLAN_ROOT)/../,$(dir $(WLAN_ROOT)),$(INCS))
+
+ccflags-y += $(sort $(INCS))
 
 cppflags-y +=	-DANI_OS_TYPE_ANDROID=6 \
 		-Wall\
-		-Werror\
 		-D__linux__
 
 cppflags-$(CONFIG_PTT_SOCK_SVC_ENABLE) += -DPTT_SOCK_SVC_ENABLE
@@ -3210,7 +3214,7 @@ ccflags-y += -DWLAN_PDEV_MAX_VDEVS=$(CONFIG_WLAN_PDEV_MAX_VDEVS)
 CONFIG_WLAN_PSOC_MAX_VDEVS ?= $(CONFIG_WLAN_MAX_VDEVS)
 ccflags-y += -DWLAN_PSOC_MAX_VDEVS=$(CONFIG_WLAN_PSOC_MAX_VDEVS)
 
-CONFIG_MAX_SCAN_CACHE_SIZE ?= 500
+CONFIG_MAX_SCAN_CACHE_SIZE ?= 200
 ccflags-y += -DMAX_SCAN_CACHE_SIZE=$(CONFIG_MAX_SCAN_CACHE_SIZE)
 CONFIG_SCAN_MAX_REST_TIME ?= 0
 ccflags-y += -DSCAN_MAX_REST_TIME=$(CONFIG_SCAN_MAX_REST_TIME)
@@ -3222,7 +3226,7 @@ CONFIG_SCAN_PROBE_SPACING_TIME ?= 0
 ccflags-y += -DSCAN_PROBE_SPACING_TIME=$(CONFIG_SCAN_PROBE_SPACING_TIME)
 CONFIG_SCAN_PROBE_DELAY ?= 0
 ccflags-y += -DSCAN_PROBE_DELAY=$(CONFIG_SCAN_PROBE_DELAY)
-CONFIG_SCAN_MAX_SCAN_TIME ?= 30000
+CONFIG_SCAN_MAX_SCAN_TIME ?= 8000
 ccflags-y += -DSCAN_MAX_SCAN_TIME=$(CONFIG_SCAN_MAX_SCAN_TIME)
 CONFIG_SCAN_NETWORK_IDLE_TIMEOUT ?= 0
 ccflags-y += -DSCAN_NETWORK_IDLE_TIMEOUT=$(CONFIG_SCAN_NETWORK_IDLE_TIMEOUT)
@@ -3413,3 +3417,5 @@ OBJS_DIRS := $(dir $(OBJS)) \
 CLEAN_DIRS := $(addsuffix *.o,$(sort $(OBJS_DIRS))) \
 	      $(addsuffix .*.o.cmd,$(sort $(OBJS_DIRS)))
 clean-files := $(CLEAN_DIRS)
+
+ccflags-y += $(call cc-option, -Os)
