@@ -11,6 +11,7 @@
 #include <linux/rwsem.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
+#include <linux/nodemask.h>
 #include <linux/uprobes.h>
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
@@ -27,6 +28,7 @@
 struct address_space;
 struct mem_cgroup;
 struct hmm;
+struct mmu_notifier;
 
 /*
  * Each physical page in the system has a struct page associated with
@@ -511,10 +513,26 @@ struct mm_struct {
 #endif
 		struct work_struct async_put_work;
 
-#if IS_ENABLED(CONFIG_HMM)
-		/* HMM needs to track a few things per mm */
-		struct hmm *hmm;
+#ifdef CONFIG_LRU_GEN
+		struct {
+			/* this mm_struct is on lru_gen_mm_list */
+			struct list_head list;
+#ifdef CONFIG_MEMCG
+			/* points to the memcg of "owner" above */
+			struct mem_cgroup *memcg;
 #endif
+			/*
+			 * Set when switching to this mm_struct, as a hint of
+			 * whether it has been used since the last time per-node
+			 * page table walkers cleared the corresponding bits.
+			 */
+			nodemask_t nodes;
+#ifdef CONFIG_LRU_GEN_WALK_MMU
+			struct mmu_notifier *notifier;
+			bool invalidated;
+#endif
+		} lru_gen;
+#endif /* CONFIG_LRU_GEN */
 	} __randomize_layout;
 
 	/*
@@ -753,5 +771,58 @@ static inline const char __user *vma_get_anon_name(struct vm_area_struct *vma)
 
 	return vma->anon_name;
 }
+
+#ifdef CONFIG_LRU_GEN
+
+struct lru_gen_mm_list {
+	/* mm_struct list for page table walkers */
+	struct list_head fifo;
+	/* protects the list above */
+	spinlock_t lock;
+};
+
+void lru_gen_add_mm(struct mm_struct *mm);
+void lru_gen_del_mm(struct mm_struct *mm);
+#ifdef CONFIG_MEMCG
+void lru_gen_migrate_mm(struct mm_struct *mm);
+#endif
+
+void lru_gen_init_mm(struct mm_struct *mm);
+void lru_gen_exit_mm(struct mm_struct *mm);
+
+static inline void lru_gen_use_mm(struct mm_struct *mm)
+{
+	/* unlikely but not a bug when racing with lru_gen_migrate_mm() */
+	VM_WARN_ON(list_empty(&mm->lru_gen.list));
+
+	if (!nodes_full(mm->lru_gen.nodes))
+		nodes_setall(mm->lru_gen.nodes);
+}
+
+#else /* !CONFIG_LRU_GEN */
+
+static inline void lru_gen_add_mm(struct mm_struct *mm)
+{
+}
+
+static inline void lru_gen_del_mm(struct mm_struct *mm)
+{
+}
+
+#ifdef CONFIG_MEMCG
+static inline void lru_gen_migrate_mm(struct mm_struct *mm)
+{
+}
+#endif
+
+static inline void lru_gen_init_mm(struct mm_struct *mm)
+{
+}
+
+static inline void lru_gen_use_mm(struct mm_struct *mm)
+{
+}
+
+#endif /* CONFIG_LRU_GEN */
 
 #endif /* _LINUX_MM_TYPES_H */

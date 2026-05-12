@@ -980,6 +980,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	RCU_INIT_POINTER(mm->exe_file, NULL);
 	mmu_notifier_mm_init(mm);
 	hmm_mm_init(mm);
+	lru_gen_init_mm(mm);
 	init_tlb_flush_pending(mm);
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 	mm->pmd_huge_pte = NULL;
@@ -1044,6 +1045,8 @@ static inline void __mmput(struct mm_struct *mm)
 	}
 	if (mm->binfmt)
 		module_put(mm->binfmt->module);
+	lru_gen_exit_mm(mm);
+	lru_gen_del_mm(mm);
 	mmdrop(mm);
 }
 
@@ -2370,6 +2373,13 @@ long _do_fork(unsigned long clone_flags,
 		p->vfork_done = &vfork;
 		init_completion(&vfork);
 		get_task_struct(p);
+	}
+
+	if (p->mm && !(clone_flags & CLONE_VM)) {
+		/* lock the task to synchronize with memcg migration */
+		task_lock(p);
+		lru_gen_add_mm(p->mm);
+		task_unlock(p);
 	}
 
 	wake_up_new_task(p);
