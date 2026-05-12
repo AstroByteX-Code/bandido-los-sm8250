@@ -24,6 +24,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable-prot.h>
 #include <asm/tlbflush.h>
+#include <asm/cpucaps.h>
 
 /*
  * VMALLOC range.
@@ -197,6 +198,9 @@ static inline pte_t pte_mkold(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(PTE_AF));
 }
+#define arch_has_hw_pte_young() \
+	(IS_ENABLED(CONFIG_ARM64_HW_AFDBM) && \
+	 cpus_have_const_cap(ARM64_HW_DBM))
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {

@@ -17,6 +17,17 @@ struct mmu_notifier_ops;
 
 #ifdef CONFIG_MMU_NOTIFIER
 
+enum mmu_notifier_event {
+	MMU_NOTIFY_UNMAP,
+	MMU_NOTIFY_CLEAR,
+	MMU_NOTIFY_PROTECTION_VMA,
+	MMU_NOTIFY_PROTECTION_PAGE,
+	MMU_NOTIFY_SOFT_DIRTY,
+	MMU_NOTIFY_RELEASE,
+	MMU_NOTIFY_MIGRATE,
+	MMU_NOTIFY_EXCLUSIVE,
+};
+
 /*
  * The mmu notifier_mm structure is allocated and installed in
  * mm->mmu_notifier_mm inside the mm_take_all_locks() protected

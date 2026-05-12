@@ -17,6 +17,9 @@
 #include <linux/swap.h>
 #include <linux/vmstat.h>
 #include "internal.h"
+#include <linux/memcontrol.h>
+
+extern struct mem_cgroup *root_mem_cgroup;
 
 static bool kzerod_enabled = true;
 
@@ -925,6 +928,9 @@ static void prepare_hugepage_alloc(void)
 	if (__ratelimit(&hugepage_compact_rs)) {
 		struct sched_param param_normal = { .sched_priority = 0 };
 		struct sched_param param_idle = { .sched_priority = 0 };
+
+		if (!mem_cgroup_disabled() && !root_mem_cgroup)
+			return;
 
 		if (!sched_setscheduler(current, SCHED_NORMAL,
 				   &param_normal)) {
