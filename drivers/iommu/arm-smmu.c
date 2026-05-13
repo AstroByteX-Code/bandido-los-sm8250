@@ -5992,39 +5992,6 @@ static struct platform_driver arm_smmu_driver = {
 	.remove	= arm_smmu_device_remove,
 };
 
-static struct platform_driver qsmmuv500_tbu_driver;
-static int __init arm_smmu_init(void)
-{
-	static bool registered;
-	int ret = 0;
-	ktime_t cur;
-
-	if (registered)
-		return 0;
-
-	cur = ktime_get();
-	ret = platform_driver_register(&qsmmuv500_tbu_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&arm_smmu_driver);
-#ifdef CONFIG_MSM_TZ_SMMU
-	ret = register_iommu_sec_ptbl();
-#endif
-	registered = !ret;
-	trace_smmu_init(ktime_us_delta(ktime_get(), cur));
-
-	return ret;
-}
-
-static void __exit arm_smmu_exit(void)
-{
-	return platform_driver_unregister(&arm_smmu_driver);
-}
-
-subsys_initcall(arm_smmu_init);
-module_exit(arm_smmu_exit);
-
 #define TCU_HW_VERSION_HLOS1		(0x18)
 
 #define DEBUG_SID_HALT_REG		0x0
@@ -7291,26 +7258,34 @@ static struct platform_driver qsmmuv500_tbu_driver = {
 	.probe	= qsmmuv500_tbu_probe,
 };
 
-static int __init arm_smmu_driver_init(void)
+static int __init arm_smmu_init(void)
 {
-	int ret;
+	static bool registered;
+	int ret = 0;
+	ktime_t cur;
+
+	if (registered)
+		return 0;
+
+	cur = ktime_get();
+	ret = platform_driver_register(&qsmmuv500_tbu_driver);
+	if (ret)
+		return ret;
 
 	ret = platform_driver_register(&arm_smmu_driver);
-#ifdef MODULE
-	if (!ret)
-		arm_smmu_legacy_bus_init();
+#ifdef CONFIG_MSM_TZ_SMMU
+	ret = register_iommu_sec_ptbl();
 #endif
+	registered = !ret;
+	trace_smmu_init(ktime_us_delta(ktime_get(), cur));
+
 	return ret;
 }
 
-static void __exit arm_smmu_driver_exit(void)
+static void __exit arm_smmu_exit(void)
 {
-	platform_driver_unregister(&arm_smmu_driver);
+	return platform_driver_unregister(&arm_smmu_driver);
 }
 
-subsys_initcall(arm_smmu_driver_init);
-module_exit(arm_smmu_driver_exit);
-
-MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
-MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
-MODULE_LICENSE("GPL v2");
+subsys_initcall(arm_smmu_init);
+module_exit(arm_smmu_exit);
