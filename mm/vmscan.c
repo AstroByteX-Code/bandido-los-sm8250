@@ -3102,12 +3102,19 @@ void lru_gen_add_mm(struct mm_struct *mm)
 	struct mem_cgroup *memcg = get_mem_cgroup_from_mm(mm);
 	struct lru_gen_mm_list *mm_list = get_mm_list(memcg);
 
-	VM_BUG_ON_MM(!list_empty(&mm->lru_gen.list), mm);
+	spin_lock(&mm_list->lock);
+
+	if (!list_empty(&mm->lru_gen.list)) {
+		spin_unlock(&mm_list->lock);
 #ifdef CONFIG_MEMCG
-	VM_BUG_ON_MM(mm->lru_gen.memcg, mm);
+		mem_cgroup_put(memcg);
+#endif
+		return;
+	}
+
+#ifdef CONFIG_MEMCG
 	mm->lru_gen.memcg = memcg;
 #endif
-	spin_lock(&mm_list->lock);
 
 	for_each_node_state(nid, N_MEMORY) {
 		struct lruvec *lruvec = get_lruvec(memcg, nid);
@@ -3130,15 +3137,17 @@ void lru_gen_del_mm(struct mm_struct *mm)
 	struct lru_gen_mm_list *mm_list;
 	struct mem_cgroup *memcg = NULL;
 
-	if (list_empty(&mm->lru_gen.list))
-		return;
-
 #ifdef CONFIG_MEMCG
 	memcg = mm->lru_gen.memcg;
 #endif
 	mm_list = get_mm_list(memcg);
 
 	spin_lock(&mm_list->lock);
+
+	if (list_empty(&mm->lru_gen.list)) {
+		spin_unlock(&mm_list->lock);
+		return;
+	}
 
 	for_each_node(nid) {
 		struct lruvec *lruvec = get_lruvec(memcg, nid);

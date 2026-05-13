@@ -819,6 +819,10 @@ static inline void lru_gen_init_mm(struct mm_struct *mm)
 {
 }
 
+static inline void lru_gen_exit_mm(struct mm_struct *mm)
+{
+}
+
 static inline void lru_gen_use_mm(struct mm_struct *mm)
 {
 }
