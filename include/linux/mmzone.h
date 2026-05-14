@@ -8,6 +8,7 @@
 #define MAX_NR_TIERS		4U
 
 
+#ifndef __GENERATING_BOUNDS_H
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/wait.h>
@@ -255,6 +256,7 @@ struct zone_reclaim_stat {
 	unsigned long		recent_rotated[ANON_AND_FILE];
 	unsigned long		recent_scanned[ANON_AND_FILE];
 };
+#endif
 
 #ifndef __GENERATING_BOUNDS_H
 
