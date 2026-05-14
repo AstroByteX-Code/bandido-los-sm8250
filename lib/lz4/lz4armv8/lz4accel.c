@@ -28,13 +28,14 @@ int lz4_decompress_asm_select(uint8_t **dst_ptr, uint8_t *dst_begin,
 			      uint8_t *dst_end, const uint8_t **src_ptr,
 			      const uint8_t *src_end, bool dip) {
 	const unsigned i = smp_processor_id();
-
+#if 0
 	switch(read_cpuid_part_number()) {
 	case ARM_CPU_PART_CORTEX_A53:
 		lz4_decompress_asm_fn[i] = _lz4_decompress_asm_noprfm;
 		return _lz4_decompress_asm_noprfm(dst_ptr, dst_begin, dst_end,
 						  src_ptr, src_end, dip);
 	}
+#endif
 	lz4_decompress_asm_fn[i] = _lz4_decompress_asm;
 	return _lz4_decompress_asm(dst_ptr, dst_begin, dst_end,
 				   src_ptr, src_end, dip);

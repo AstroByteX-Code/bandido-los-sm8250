@@ -21,7 +21,7 @@ mkdir -p out
 export ARCH=arm64
 CLANG_TRIPLE=aarch64-linux-gnu
 
-CPU=$(($(nproc) - 1))
+CPU=$(($(nproc) - 3))
 DATE_START=$(date +"%s")
 IMAGE="out/arch/arm64/boot/Image.gz-dtb"
 
@@ -106,7 +106,7 @@ if [[ -f "$IMAGE" ]]; then
 
 	cd AnyKernel3
 
-	zip -r9 $KERNELZIP . -x ".git/*" ".github/*" "README.md" "*placeholder" "modules/*"
+	zip -r9 $KERNELZIP . -x ".git*" ".github*" "README.md" "*placeholder" "modules/*"
 
 	echo -e "\nTime elapsed: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.\n"
 
@@ -124,7 +124,7 @@ if [[ -f "$IMAGE" ]]; then
 			if [[ $MODE -eq 1 ]]; then
 				echo -e "\a"
 				echo "Device is connected but not in recovery mode."
-				read -p "Press Enter to reboot to recovery mode..."
+#				read -p "Press Enter to reboot to recovery mode..."
 				adb reboot recovery
 				echo "Rebooting to recovery mode..."
 				REBOOT=1

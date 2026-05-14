@@ -101,13 +101,19 @@ static void write_tcs_reg(struct rsc_drv *drv, int reg, int tcs_id, u32 data)
 static void write_tcs_reg_sync(struct rsc_drv *drv, int reg, int tcs_id,
 			       u32 data)
 {
+	int i;
+
 	writel(data, drv->tcs_base + reg + RSC_DRV_TCS_OFFSET * tcs_id);
-	for (;;) {
+
+	/* Wait until we read back the same value. 1 second timeout. */
+	for (i = 0; i < 1000000; i++) {
 		if (data == readl(drv->tcs_base + reg +
 				  RSC_DRV_TCS_OFFSET * tcs_id))
-			break;
+			return;
 		udelay(1);
 	}
+	pr_err("DRV:%s error writing %#x to tcs:%d reg:%#x\n", drv->name,
+	       data, tcs_id, reg);
 }
 
 static bool tcs_is_free(struct rsc_drv *drv, int tcs_id)
@@ -294,10 +300,13 @@ static irqreturn_t tcs_tx_done(int irq, void *p)
 		ipc_log_string(drv->ipc_log_ctx,
 			       "IRQ response: m=%d err=%d", i, err);
 
-		/* Clear AMC trigger & enable modes and
+		/*
+		 * if wake tcs was re-purposed for sending active
+		 * votes, clear AMC trigger & enable modes and
 		 * disable interrupt for this TCS
 		 */
-		__tcs_set_trigger(drv, i, false);
+		if (!drv->tcs[ACTIVE_TCS].num_tcs)
+			__tcs_set_trigger(drv, i, false);
 skip:
 		/* Reclaim the TCS */
 		write_tcs_reg(drv, RSC_DRV_CMD_ENABLE, i, 0);
@@ -456,9 +465,14 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 		return -EINVAL;
 	}
 
+	int retry_count = 0;
 	do {
 		ret = tcs_write(drv, msg);
 		if (ret == -EBUSY) {
+			if (++retry_count > 500000) { // ~5 seconds of udelay(10)
+				panic("RPMH Livelock: DRV:%s stuck at addr=%#x\n",
+				      drv->name, msg->cmds[0].addr);
+			}
 			pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x\n",
 					    drv->name, msg->cmds[0].addr);
 			udelay(10);
