@@ -32,6 +32,7 @@ enum DP_BD_ITEM_LIST {
 	BD_ITEM_MAX,
 };
 
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
 void secdp_bigdata_save_item(enum DP_BD_ITEM_LIST item, ...);
 void secdp_bigdata_inc_error_cnt(enum DP_BD_ITEM_LIST err);
 void secdp_bigdata_clr_error_cnt(enum DP_BD_ITEM_LIST err);
@@ -43,5 +44,18 @@ ssize_t _secdp_bigdata_show(struct class *class,
 					struct class_attribute *attr, char *buf);
 ssize_t _secdp_bigdata_store(struct class *dev,
 					struct class_attribute *attr, const char *buf, size_t size);
+#else
+static inline void secdp_bigdata_save_item(enum DP_BD_ITEM_LIST item, ...) {}
+static inline void secdp_bigdata_inc_error_cnt(enum DP_BD_ITEM_LIST err) {}
+static inline void secdp_bigdata_clr_error_cnt(enum DP_BD_ITEM_LIST err) {}
+static inline void secdp_bigdata_connection(void) {}
+static inline void secdp_bigdata_disconnection(void) {}
+static inline void secdp_bigdata_init(struct class *dp_class) {}
+
+static inline ssize_t _secdp_bigdata_show(struct class *class,
+					struct class_attribute *attr, char *buf) { return 0; }
+static inline ssize_t _secdp_bigdata_store(struct class *dev,
+					struct class_attribute *attr, const char *buf, size_t size) { return size; }
+#endif
 
 #endif /* DISPLAYPORT_BIGDATA_H */

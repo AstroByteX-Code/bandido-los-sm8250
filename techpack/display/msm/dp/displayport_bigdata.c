@@ -1,3 +1,4 @@
+#ifdef CONFIG_SEC_DISPLAYPORT_BIGDATA
 /*
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -355,3 +356,4 @@ void secdp_bigdata_disconnection(void)
 		secdp_bigdata_save_data();
 
 }
+#endif

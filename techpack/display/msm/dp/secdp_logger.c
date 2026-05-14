@@ -1,3 +1,4 @@
+#ifdef CONFIG_SEC_DISPLAYPORT_LOGGER
 /*
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -187,3 +188,4 @@ int secdp_logger_init(void)
 
 	return 0;
 }
+#endif
