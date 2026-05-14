@@ -1,0 +1,62 @@
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/notifier.h>
+
+/* SEC_ARGOS Stubs */
+int argos_task_affinity_setup_label(struct task_struct *p, const char *label,
+				    struct cpumask *affinity_cpu_mask,
+				    struct cpumask *default_cpu_mask)
+{
+	return 0;
+}
+EXPORT_SYMBOL(argos_task_affinity_setup_label);
+
+int sec_argos_register_notifier(struct notifier_block *n, char *label)
+{
+	return 0;
+}
+EXPORT_SYMBOL(sec_argos_register_notifier);
+
+int sec_argos_unregister_notifier(struct notifier_block *n, char *label)
+{
+	return 0;
+}
+EXPORT_SYMBOL(sec_argos_unregister_notifier);
+
+/* SEC_STI / ABC Stubs */
+void sec_abc_send_event(char *str)
+{
+}
+EXPORT_SYMBOL(sec_abc_send_event);
+
+int sec_abc_get_enabled(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(sec_abc_get_enabled);
+
+int sec_abc_wait_enabled(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(sec_abc_wait_enabled);
+
+/* SEC_SMEM Stubs */
+char* get_ddr_vendor_name(void) { return "STUB"; }
+EXPORT_SYMBOL(get_ddr_vendor_name);
+
+uint32_t get_ddr_DSF_version(void) { return 0; }
+EXPORT_SYMBOL(get_ddr_DSF_version);
+
+uint8_t get_ddr_info(uint8_t type) { return 0; }
+EXPORT_SYMBOL(get_ddr_info);
+
+void sec_smem_cpuclk_log_raw(size_t slot, unsigned long rate) {}
+EXPORT_SYMBOL(sec_smem_cpuclk_log_raw);
+
+void sec_smem_clk_osm_add_log_cpufreq(unsigned int cpu, unsigned long rate, const char *name) {}
+EXPORT_SYMBOL(sec_smem_clk_osm_add_log_cpufreq);
+
+void sec_smem_clk_osm_add_log_l3(unsigned long rate) {}
+EXPORT_SYMBOL(sec_smem_clk_osm_add_log_l3);
