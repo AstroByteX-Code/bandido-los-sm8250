@@ -166,6 +166,7 @@ static inline int sec_debug_get_reset_write_cnt(void) { return 0; }
 #define sec_debug_save_smmu_info_fatal()
 #define sec_debug_save_smmu_info_asf_fatal()
 static inline void sec_debug_summary_modem_print(void) {}
+static inline void sec_debug_store_additional_dbg(enum extra_info_dbg_type type, unsigned int value, const char *fmt, ...) {}
 #endif /* CONFIG_SEC_USER_RESET_DEBUG */
 
 #endif /* __INDIRECT__SEC_DEBUG_USER_RESET_H__ */

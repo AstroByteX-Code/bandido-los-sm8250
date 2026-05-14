@@ -3037,7 +3037,7 @@ module_exit(qpnp_pon_exit);
 MODULE_DESCRIPTION("QPNP PMIC Power-on driver");
 MODULE_LICENSE("GPL v2");
 
-#if defined(CONFIG_SEC_DEBUG)
+#if defined(CONFIG_SEC_PM)
 int qpnp_control_s2_reset_onoff(int on)
 {
 	int rc;

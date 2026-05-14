@@ -457,6 +457,7 @@ done_write:
  */
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 {
+	int rsc_retry_count = 0;
 	int ret;
 
 	if (!msg || !msg->cmds || !msg->num_cmds ||
@@ -465,16 +466,13 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 		return -EINVAL;
 	}
 
-	int retry_count = 0;
 	do {
 		ret = tcs_write(drv, msg);
 		if (ret == -EBUSY) {
-			if (++retry_count > 500000) { // ~5 seconds of udelay(10)
-				panic("RPMH Livelock: DRV:%s stuck at addr=%#x\n",
-				      drv->name, msg->cmds[0].addr);
+			if (++rsc_retry_count > 500000) {
+				panic("RPMH Livelock: DRV:%s stuck at addr=%#x\n", drv->name, msg->cmds[0].addr);
 			}
-			pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x\n",
-					    drv->name, msg->cmds[0].addr);
+			pr_info_ratelimited("DRV:%s TCS Busy, retrying RPMH message send: addr=%#x\n", drv->name, msg->cmds[0].addr);
 			udelay(10);
 		}
 	} while (ret == -EBUSY);
