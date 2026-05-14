@@ -212,7 +212,8 @@ static inline bool lru_gen_add_page(struct lruvec *lruvec, struct page *page, bo
 
 	do {
 		new_flags = old_flags = READ_ONCE(page->flags);
-		VM_BUG_ON_PAGE(new_flags & LRU_GEN_MASK, page);
+		if (old_flags & LRU_GEN_MASK)
+			gen = ((old_flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
 
 		/* see the comment on MIN_NR_GENS */
 		new_flags &= ~(LRU_GEN_MASK | BIT(PG_active));
@@ -244,14 +245,14 @@ static inline bool lru_gen_del_page(struct lruvec *lruvec, struct page *page, bo
 
 		gen = ((new_flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
 
-		new_flags &= ~LRU_GEN_MASK;
-		if (!(new_flags & BIT(PG_referenced)))
-			new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
-		/* for shrink_page_list() */
-		if (reclaiming)
+		if (reclaiming) {
+			new_flags &= ~LRU_GEN_MASK;
+			if (!(new_flags & BIT(PG_referenced)))
+				new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
 			new_flags &= ~(BIT(PG_referenced) | BIT(PG_reclaim));
-		else if (lru_gen_is_active(lruvec, gen))
+		} else if (lru_gen_is_active(lruvec, gen)) {
 			new_flags |= BIT(PG_active);
+		}
 	} while (cmpxchg(&page->flags, old_flags, new_flags) != old_flags);
 
 	lru_gen_update_size(lruvec, page, gen, -1);
@@ -322,4 +323,15 @@ static __always_inline void del_page_from_lru_list(struct page *page,
 	update_lru_size(lruvec, page_lru(page), page_zonenum(page),
 			-hpage_nr_pages(page));
 }
+static inline void lru_gen_migrate_page(struct page *oldpage, struct page *newpage)
+{
+	unsigned long old_flags = READ_ONCE(oldpage->flags);
+
+	if (!(old_flags & LRU_GEN_MASK) && !(old_flags & LRU_REFS_MASK))
+		return;
+
+	/* copy the generation and the refs */
+	set_mask_bits(&newpage->flags, 0, old_flags & (LRU_GEN_MASK | LRU_REFS_MASK));
+}
 #endif
+

@@ -1188,11 +1188,18 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		*lru_size += nr_pages;
 
 	size = *lru_size;
-	if (WARN_ONCE(size < 0,
+	if (WARN_ONCE(size < 0 && !lru_gen_enabled(),
 		"%s(%p, %d, %d): lru_size %ld\n",
 		__func__, lruvec, lru, nr_pages, size)) {
-		VM_BUG_ON(1);
-		*lru_size = 0;
+		/*
+		 * If MGLRU is disabled, we keep the original behavior of
+		 * resetting to 0 for the legacy path, although it's still
+		 * questionable. For MGLRU, we MUST NOT reset it because
+		 * the negative value is a transient state of the race
+		 * between generation rotation and page isolation.
+		 */
+		if (!lru_gen_enabled())
+			*lru_size = 0;
 	}
 
 	if (nr_pages > 0)
@@ -6446,6 +6453,8 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 	mem_cgroup_charge_statistics(memcg, newpage, compound, nr_pages);
 	memcg_check_events(memcg, newpage);
 	local_irq_restore(flags);
+
+	lru_gen_migrate_page(oldpage, newpage);
 }
 
 DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);
