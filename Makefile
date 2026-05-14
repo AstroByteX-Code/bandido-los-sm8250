@@ -797,15 +797,11 @@ LLVMPARAMS := \
   -mllvm -locally-hot-callsite-threshold=50 \
   -mllvm -inline-enable-cost-benefit-analysis=true \
   -mllvm -enable-loop-distribute=true \
-  -mllvm -enable-gvn-hoist \
-  -mllvm -enable-misched \
   -mllvm -enable-loopinterchange=true \
-  -mllvm -enable-loop-flatten=true \
-  -mllvm --enable-loop-distribute=true
+  -mllvm -enable-loop-flatten=true
 
 LLVMPARAMS_LINK := \
-  -mllvm -enable-merge-functions=true \
-  -mllvm -enable-machine-outliner
+  -mllvm -enable-merge-functions=true
 
 COPTS := -Os -ffast-math -falign-functions=1 -falign-loops=1 \
 	$(POLLY) $(LLVMPARAMS)
