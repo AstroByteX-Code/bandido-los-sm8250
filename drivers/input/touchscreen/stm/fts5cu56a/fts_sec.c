@@ -27,6 +27,7 @@ enum ito_error_type {
 };
 
 #define FTS_COMP_DATA_HEADER_SIZE     16
+#include <linux/input/sec_tsp_log.h>
 
 enum fts_nvm_data_type {		/* Write Command */
 	FTS_NVM_OFFSET_FAC_RESULT = 1,

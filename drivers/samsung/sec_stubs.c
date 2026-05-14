@@ -60,3 +60,21 @@ EXPORT_SYMBOL(sec_smem_clk_osm_add_log_cpufreq);
 
 void sec_smem_clk_osm_add_log_l3(unsigned long rate) {}
 EXPORT_SYMBOL(sec_smem_clk_osm_add_log_l3);
+
+void sec_tsp_sponge_log(char *buf) {}
+EXPORT_SYMBOL(sec_tsp_sponge_log);
+
+void sec_debug_tsp_log(char *fmt, ...) {}
+EXPORT_SYMBOL(sec_debug_tsp_log);
+
+void sec_debug_tsp_raw_data(char *fmt, ...) {}
+EXPORT_SYMBOL(sec_debug_tsp_raw_data);
+
+void sec_debug_tsp_log_msg(char *msg, char *fmt, ...) {}
+EXPORT_SYMBOL(sec_debug_tsp_log_msg);
+
+void sec_debug_tsp_raw_data_msg(char *msg, char *fmt, ...) {}
+EXPORT_SYMBOL(sec_debug_tsp_raw_data_msg);
+
+void sec_debug_tsp_command_history(char *buf) {}
+EXPORT_SYMBOL(sec_debug_tsp_command_history);
