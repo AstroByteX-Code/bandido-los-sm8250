@@ -1,8 +1,12 @@
-subdir-ccflags-y += $(BOPTS2)
 # SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux kernel.
 #
+subdir-ccflags-y += -O3 -falign-functions=1 -falign-loops=1 \
+  -mllvm -enable-unroll-and-jam=true \
+  -mllvm -enable-loop-distribute=true \
+  -mllvm -enable-loopinterchange=true \
+  -mllvm -enable-loop-flatten=true
 
 CPPFLAGS_vmlinux.lds	:= -DTEXT_OFFSET=$(TEXT_OFFSET)
 AFLAGS_head.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
