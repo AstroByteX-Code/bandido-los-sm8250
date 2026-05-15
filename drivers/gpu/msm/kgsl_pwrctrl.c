@@ -170,14 +170,14 @@ static void _ab_buslevel_update(struct kgsl_pwrctrl *pwr,
  * constraint if one exists.
  */
 static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
-					struct kgsl_pwr_constraint *pwrc,
-					int popp)
+					struct kgsl_pwr_constraint *pwrc)
 {
 	unsigned int max_pwrlevel = max_t(unsigned int, pwr->thermal_pwrlevel,
 					pwr->max_pwrlevel);
 	unsigned int min_pwrlevel = min_t(unsigned int,
 					pwr->thermal_pwrlevel_floor,
 					pwr->min_pwrlevel);
+	unsigned int final_level;
 
 	/* Ensure that max/min pwrlevels are within thermal max/min limits */
 	max_pwrlevel = min_t(unsigned int, max_pwrlevel,
@@ -199,15 +199,17 @@ static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
 	break;
 	}
 
-	if (popp && (max_pwrlevel < pwr->active_pwrlevel))
-		max_pwrlevel = pwr->active_pwrlevel;
+	/* Hard-force the minimum level to the absolute max level of the table */
+	min_pwrlevel = pwr->num_pwrlevels - 2;
 
-	if (level < max_pwrlevel)
-		return max_pwrlevel;
-	if (level > min_pwrlevel)
-		return min_pwrlevel;
+	if (level < (int)max_pwrlevel)
+		final_level = max_pwrlevel;
+	else if (level > (int)min_pwrlevel)
+		final_level = min_pwrlevel;
+	else
+		final_level = (unsigned int)level;
 
-	return level;
+	return final_level;
 }
 
 #ifdef CONFIG_DEVFREQ_GOV_QCOM_GPUBW_MON
@@ -267,8 +269,8 @@ int kgsl_clk_set_rate(struct kgsl_device *device,
 			pl->gpu_freq, clocks[0]);
 
 	if (ret)
-		dev_err(device->dev, "GPU clk freq set failure: %d\n",
-			     ret);
+		dev_err(device->dev, "GPU clk freq set failure for level %u (%u Hz): %d\n",
+			     pwrlevel, pl->gpu_freq, ret);
 
 	return ret;
 }
@@ -582,8 +584,7 @@ unsigned int kgsl_pwrctrl_adjust_pwrlevel(struct kgsl_device *device,
 	 * Adjust the power level if required by thermal, max/min,
 	 * constraints, etc
 	 */
-	return _adjust_pwrlevel(pwr, new_level, &pwr->constraint,
-					device->pwrscale.popp_level);
+	return _adjust_pwrlevel(pwr, new_level, &pwr->constraint);
 }
 
 /**
@@ -725,8 +726,13 @@ void kgsl_pwrctrl_set_constraint(struct kgsl_device *device,
 
 	if (device == NULL || pwrc == NULL)
 		return;
+
+	/* Ignore boost constraints from init/system */
+	if (current->tgid == 1)
+		return;
+
 	constraint = _adjust_pwrlevel(&device->pwrctrl,
-				device->pwrctrl.active_pwrlevel, pwrc, 0);
+				device->pwrctrl.active_pwrlevel, pwrc);
 	pwrc_old = &device->pwrctrl.constraint;
 
 	/*
@@ -835,6 +841,10 @@ static ssize_t max_pwrlevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
+	/* Ignore writes from init/system to prevent overriding our defaults */
+	if (current->tgid == 1)
+		return count;
+
 	mutex_lock(&device->mutex);
 
 	/* You can't set a maximum power level lower than the minimum */
@@ -892,6 +902,10 @@ static ssize_t min_pwrlevel_store(struct device *dev,
 	ret = kgsl_sysfs_store(buf, &level);
 	if (ret)
 		return ret;
+
+	/* Ignore writes from init/system to prevent overriding our defaults */
+	if (current->tgid == 1)
+		return count;
 
 	kgsl_pwrctrl_min_pwrlevel_set(device, level);
 
@@ -1370,37 +1384,7 @@ done:
 }
 
 
-static ssize_t popp_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	unsigned int val = 0;
-	struct kgsl_device *device = dev_get_drvdata(dev);
-	int ret;
-
-	ret = kgsl_sysfs_store(buf, &val);
-	if (ret)
-		return ret;
-
-	mutex_lock(&device->mutex);
-	if (val)
-		set_bit(POPP_ON, &device->pwrscale.popp_state);
-	else
-		clear_bit(POPP_ON, &device->pwrscale.popp_state);
-	mutex_unlock(&device->mutex);
-
-	return count;
-}
-
-static ssize_t popp_show(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct kgsl_device *device = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-		test_bit(POPP_ON, &device->pwrscale.popp_state));
-}
+/* POPP REMOVED */
 
 static ssize_t gpu_model_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -1617,7 +1601,7 @@ static DEVICE_ATTR_RW(force_bus_on);
 static DEVICE_ATTR_RW(force_rail_on);
 static DEVICE_ATTR_RW(bus_split);
 static DEVICE_ATTR_RW(default_pwrlevel);
-static DEVICE_ATTR_RW(popp);
+/* DEVICE_ATTR_RW(popp) REMOVED */
 static DEVICE_ATTR_RW(force_no_nap);
 static DEVICE_ATTR_RO(gpu_model);
 static DEVICE_ATTR_RO(gpu_busy_percentage);
@@ -1646,7 +1630,7 @@ static const struct attribute *pwrctrl_attr_list[] = {
 	&dev_attr_force_no_nap.attr,
 	&dev_attr_bus_split.attr,
 	&dev_attr_default_pwrlevel.attr,
-	&dev_attr_popp.attr,
+	/* &dev_attr_popp.attr, REMOVED */
 	&dev_attr_gpu_model.attr,
 	&dev_attr_gpu_busy_percentage.attr,
 	&dev_attr_min_clock_mhz.attr,
@@ -2290,8 +2274,9 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	if (pwr->grp_clks[0] == NULL)
 		pwr->grp_clks[0] = pwr->grp_clks[1];
 
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,no-nap"))
-		device->pwrctrl.ctrl_flags |= BIT(KGSL_PWRFLAGS_NAP_OFF);
+	/* NAP OFF forced to 0 for better battery life */
+	/* if (of_property_read_bool(pdev->dev.of_node, "qcom,no-nap"))
+		device->pwrctrl.ctrl_flags |= BIT(KGSL_PWRFLAGS_NAP_OFF); */
 
 	if (pwr->num_pwrlevels == 0) {
 		dev_err(device->dev, "No power levels are defined\n");

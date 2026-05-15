@@ -1035,7 +1035,7 @@ static int adreno_of_parse_pwrlevels(struct adreno_device *adreno_dev,
 			"qcom,bus-freq", &level->bus_freq);
 		if (ret) {
 			dev_err(device->dev,
-				"%pOF: Couldn't read the bus frequency for power level %d\n",
+				"%pOF: Couldn't read the bus frequency for power level %u\n",
 				child, index);
 			return ret;
 		}
