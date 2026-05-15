@@ -61,6 +61,7 @@ EXPORT_SYMBOL(sec_smem_clk_osm_add_log_cpufreq);
 void sec_smem_clk_osm_add_log_l3(unsigned long rate) {}
 EXPORT_SYMBOL(sec_smem_clk_osm_add_log_l3);
 
+#ifndef CONFIG_SEC_DEBUG_TSP_LOG
 void sec_tsp_sponge_log(char *buf) {}
 EXPORT_SYMBOL(sec_tsp_sponge_log);
 
@@ -78,3 +79,4 @@ EXPORT_SYMBOL(sec_debug_tsp_raw_data_msg);
 
 void sec_debug_tsp_command_history(char *buf) {}
 EXPORT_SYMBOL(sec_debug_tsp_command_history);
+#endif
