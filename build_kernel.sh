@@ -25,73 +25,78 @@ CPU=$(($(nproc) - 3))
 DATE_START=$(date +"%s")
 IMAGE="out/arch/arm64/boot/Image.gz-dtb"
 
-#Remove a previous kernel image
-rm out/arch/arm64/boot/Image* &>/dev/null
+if [[ $1 != "flash" ]]; then
+	#Remove a previous kernel image
+	rm out/arch/arm64/boot/Image* &>/dev/null
 
-make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
 
-#Remove "=y" or "is not set"
-scripts/configcleaner "CONFIG_LTO_CLANG
+	#Remove "=y" or "is not set"
+	scripts/configcleaner "CONFIG_LTO_CLANG
 CONFIG_THINLTO
 CONFIG_LTO_GCC
 CONFIG_PGO_CLANG
 CONFIG_PGOUSE_CLANG
 "
 
-if [[ -v LLVM ]]; then
-	VERSION=$(${CLANG_DIR}clang -dumpversion | cut -d. -f1)
-	COMPILER="clang$VERSION"
-	echo -e "# CONFIG_LTO_GCC is not set\n" >>out/.config
-	case $1 in
-	lto)
-		COMPILER="$COMPILER-lto"
-		echo -e "\n################# Compiling FULL CLANG LTO build #################\n"
-		echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
-		echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
-		echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
-		echo -e "CONFIG_LTO_CLANG=y\n" >>out/.config
-		;;
-	pgo)
-		echo -e "\n################# Compiling FULL CLANG LTO PGO build #################\n"
-		echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
-		echo -e "CONFIG_PGO_CLANG=y\n" >>out/.config
-		echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
-		echo -e "# CONFIG_LTO_CLANG is not set\n" >>out/.config
-		;;
-	pgouse)
-		echo -e "\n################# Compiling FULL CLANG LTO PGOUSE build #################\n"
-		echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
-		echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
-		echo -e "CONFIG_PGOUSE_CLANG=y\n" >>out/.config
-		;;
-	*)
-		echo -e "CONFIG_THINLTO=y\n" >>out/.config
-		echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
-		echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
-		echo -e "CONFIG_LTO_CLANG=y\n" >>out/.config
-		;;
-	esac
-else
-	VERSION=$(${BUILD_CROSS_COMPILE}gcc -dumpversion | cut -d. -f1)
-	COMPILER="gcc$VERSION$2"
-	case $1 in
-	lto)
-		COMPILER="$COMPILER-lto"
-		echo -e "\n################# Compiling FULL GCC LTO build #################\n"
-		echo -e "\nCONFIG_LTO_GCC=y\n" >>out/.config
-		;;
+	if [[ -v LLVM ]]; then
+		VERSION=$(${CLANG_DIR}clang -dumpversion | cut -d. -f1)
+		COMPILER="clang$VERSION"
+		echo -e "# CONFIG_LTO_GCC is not set\n" >>out/.config
+		case $1 in
+		lto)
+			COMPILER="$COMPILER-lto"
+			echo -e "\n################# Compiling FULL CLANG LTO build #################\n"
+			echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
+			echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
+			echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
+			echo -e "CONFIG_LTO_CLANG=y\n" >>out/.config
+			;;
+		pgo)
+			echo -e "\n################# Compiling FULL CLANG LTO PGO build #################\n"
+			echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
+			echo -e "CONFIG_PGO_CLANG=y\n" >>out/.config
+			echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
+			echo -e "# CONFIG_LTO_CLANG is not set\n" >>out/.config
+			;;
+		pgouse)
+			echo -e "\n################# Compiling FULL CLANG LTO PGOUSE build #################\n"
+			echo -e "# CONFIG_THINLTO is not set\n" >>out/.config
+			echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
+			echo -e "CONFIG_PGOUSE_CLANG=y\n" >>out/.config
+			;;
+		*)
+			echo -e "CONFIG_THINLTO=y\n" >>out/.config
+			echo -e "# CONFIG_PGOUSE_CLANG is not set\n" >>out/.config
+			echo -e "# CONFIG_PGO_CLANG is not set\n" >>out/.config
+			echo -e "CONFIG_LTO_CLANG=y\n" >>out/.config
+			;;
+		esac
+	else
+		VERSION=$(${BUILD_CROSS_COMPILE}gcc -dumpversion | cut -d. -f1)
+		COMPILER="gcc$VERSION$2"
+		case $1 in
+		lto)
+			COMPILER="$COMPILER-lto"
+			echo -e "\n################# Compiling FULL GCC LTO build #################\n"
+			echo -e "\nCONFIG_LTO_GCC=y\n" >>out/.config
+			;;
 
-	*)
-		echo -e "\n# CONFIG_LTO_GCC is not set\n" >>out/.config
-		;;
-	esac
+		*)
+			echo -e "\n# CONFIG_LTO_GCC is not set\n" >>out/.config
+			;;
+		esac
+	fi
+
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+		CLANG_TRIPLE=$CLANG_TRIPLE oldconfig
+
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+		CLANG_TRIPLE=$CLANG_TRIPLE Image.gz-dtb 2>&1 | tee compile-bandido.log
+else
+	COMPILER="prebuilt"
 fi
 
-make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
-	CLANG_TRIPLE=$CLANG_TRIPLE oldconfig
-
-make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
-	CLANG_TRIPLE=$CLANG_TRIPLE Image.gz-dtb 2>&1 | tee compile-bandido.log
 
 if [[ -f "$IMAGE" ]]; then
 	DATE_END=$(date +"%s")
@@ -102,11 +107,22 @@ if [[ -f "$IMAGE" ]]; then
 	rm AnyKernel3/dtb* >/dev/null 2>&1
 	rm AnyKernel3/*Image* >/dev/null 2>&1
 	rm AnyKernel3/*.zip >/dev/null 2>&1
+
+	# Manual DTBO packaging using official script
+	DTBO_FILES=$(find out/arch/arm64/boot/dts/samsung/ -name "*.dtbo" | sort)
+	if [[ -n "$DTBO_FILES" ]]; then
+		echo -e "\nPackaging DTBO image with mkdtboimg.py...\n"
+		python3 scripts/mkdtboimg.py create AnyKernel3/dtbo.img --page_size=4096 $DTBO_FILES
+	fi
+
 	cp $IMAGE AnyKernel3/
+	cat out/arch/arm64/boot/dts/vendor/qcom/kona.dtb \
+		out/arch/arm64/boot/dts/vendor/qcom/kona-v2.dtb \
+		out/arch/arm64/boot/dts/vendor/qcom/kona-v2.1.dtb > AnyKernel3/dtb
 
 	cd AnyKernel3
 
-	zip -r9 $KERNELZIP . -x ".git*" ".github*" "README.md" "*placeholder" "modules/*"
+	zip -r9 $KERNELZIP . -x ".git*" ".github*" "README.md" "*placeholder"
 
 	echo -e "\nTime elapsed: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.\n"
 
