@@ -506,6 +506,7 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 	struct device *dev = &pdev->dev, *cpu_dev;
 	void __iomem *base_freq, *base_volt;
 	u32 data, src, lval, i, core_count, prev_cc, prev_freq, cur_freq, volt;
+	u32 raw_freq, prev_raw_freq;
 	u32 vc;
 	unsigned long cpu;
 	int ret, of_len;
@@ -539,6 +540,7 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 	base_volt = c->reg_bases[REG_VOLT_LUT_TABLE];
 
 	prev_cc = 0;
+	prev_raw_freq = 0;
 
 	for (i = 0; i < lut_max_entries; i++) {
 		data = readl_relaxed(base_freq + i * lut_row_size);
@@ -555,12 +557,15 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 		else
 			c->table[i].frequency = c->cpu_hw_rate / 1000;
 
+		raw_freq = c->table[i].frequency;
 		cur_freq = c->table[i].frequency;
 
-		dev_dbg(dev, "index=%d freq=%d, core_count %d\n",
-			i, c->table[i].frequency, core_count);
+		pr_info("cpufreq-hw: domain=%d index=%d freq=%d src=%d lval=%d cc=%d volt=%d\n",
+			domain_index, i, c->table[i].frequency, src, lval, core_count, volt);
 
 		if (!of_find_freq(of_table, of_len, c->table[i].frequency)) {
+			pr_info("cpufreq-hw: domain=%d FILTERED freq=%d at index=%d\n",
+				domain_index, c->table[i].frequency, i);
 			c->table[i].frequency = CPUFREQ_ENTRY_INVALID;
 			cur_freq = CPUFREQ_ENTRY_INVALID;
 		} else if (core_count != c->max_cores) {
@@ -582,11 +587,12 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 		}
 
 		/*
-		 * Two of the same frequencies with the same core counts means
-		 * end of table.
+		 * Two of the same raw hardware frequencies with the same
+		 * core counts means end of table. Use raw_freq instead of
+		 * table[].frequency to avoid false end-of-table when
+		 * consecutive entries are both filtered to CPUFREQ_ENTRY_INVALID.
 		 */
-		if (i > 0 && c->table[i - 1].frequency ==
-				c->table[i].frequency) {
+		if (i > 0 && prev_raw_freq == raw_freq) {
 			if (prev_cc == core_count) {
 				struct cpufreq_frequency_table *prev =
 							&c->table[i - 1];
@@ -599,6 +605,7 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 
 		prev_cc = core_count;
 		prev_freq = cur_freq;
+		prev_raw_freq = raw_freq;
 
 		for_each_cpu(cpu, &c->related_cpus) {
 			cpu_dev = get_cpu_device(cpu);
@@ -611,6 +618,15 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 
 	c->lut_max_entries = i;
 	c->table[i].frequency = CPUFREQ_TABLE_END;
+
+	{
+		int valid = 0, j;
+		for (j = 0; j < i; j++)
+			if (c->table[j].frequency != CPUFREQ_ENTRY_INVALID)
+				valid++;
+		pr_info("cpufreq-hw: domain=%d total_lut=%d valid_freqs=%d\n",
+			domain_index, i, valid);
+	}
 
 	if (c->skip_data.skip) {
 		pr_err("%s Skip: Index[%u], Frequency[%u], Core Count %u, Final Index %u Actual Index %u Prev_Freq[%u] Prev_Index[%u] Prev_CC[%u]\n",
