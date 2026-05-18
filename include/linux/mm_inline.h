@@ -235,13 +235,15 @@ static inline bool lru_gen_del_page(struct lruvec *lruvec, struct page *page, bo
 	int gen;
 	unsigned long old_flags, new_flags;
 
+	if (PageUnevictable(page))
+		return false;
+
 	do {
 		new_flags = old_flags = READ_ONCE(page->flags);
 		if (!(new_flags & LRU_GEN_MASK))
 			return false;
 
 		VM_BUG_ON_PAGE(PageActive(page), page);
-		VM_BUG_ON_PAGE(PageUnevictable(page), page);
 
 		gen = ((new_flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
 

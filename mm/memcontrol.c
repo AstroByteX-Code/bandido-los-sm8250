@@ -6192,7 +6192,8 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
 	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
 
 	VM_BUG_ON_PAGE(!page->mapping, page);
-	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
+	if (PageLRU(page))
+		lrucare = true;
 
 	if (mem_cgroup_disabled())
 		return;

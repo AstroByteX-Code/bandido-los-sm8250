@@ -158,7 +158,7 @@ struct scan_control {
 /*
  * Number of active kswapd threads
  */
-#define DEF_KSWAPD_THREADS_PER_NODE 3
+#define DEF_KSWAPD_THREADS_PER_NODE 1
 int kswapd_threads = DEF_KSWAPD_THREADS_PER_NODE;
 int kswapd_threads_current = DEF_KSWAPD_THREADS_PER_NODE;
 
@@ -4455,7 +4455,7 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 	unsigned long bitmap[BITS_TO_LONGS(MIN_LRU_BATCH)] = {};
 	struct mem_cgroup *memcg = page_memcg(pvmw->page);
 	struct pglist_data *pgdat = page_pgdat(pvmw->page);
-	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+	struct lruvec *lruvec = mem_cgroup_page_lruvec(pvmw->page, pgdat);
 	DEFINE_MAX_SEQ(lruvec);
 	int old_gen, new_gen = lru_gen_from_seq(max_seq);
 
@@ -4463,6 +4463,10 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 	VM_BUG_ON_PAGE(PageLRU(pvmw->page), pvmw->page);
 
 	if (spin_is_contended(pvmw->ptl))
+		return;
+
+	/* avoid special VMAs */
+	if (pvmw->vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP))
 		return;
 
 	start = max(pvmw->address & PMD_MASK, pvmw->vma->vm_start);
@@ -7668,8 +7672,8 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
 		if (page_evictable(page)) {
 
 			VM_BUG_ON_PAGE(PageActive(page), page);
-			ClearPageUnevictable(page);
 			del_page_from_lru_list(page, lruvec);
+			ClearPageUnevictable(page);
 			add_page_to_lru_list(page, lruvec);
 			pgrescued++;
 		}
