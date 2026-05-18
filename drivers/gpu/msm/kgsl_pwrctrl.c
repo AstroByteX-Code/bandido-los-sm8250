@@ -1427,10 +1427,24 @@ static ssize_t min_clock_mhz_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct kgsl_device *device = dev_get_drvdata(dev);
+	int level, ret;
+	unsigned int freq;
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	/* Force min_pwrlevel to the absolute baseline minimum (305MHz) */
-	kgsl_pwrctrl_min_pwrlevel_set(device, pwr->num_pwrlevels - 1);
+	if (current->parent->pid == 1)
+		return -EINVAL;
+
+	pr_info("Bandido: %s min_clock_mhz_store %s %d\n", current->comm, buf, current->parent->pid);
+
+	ret = kgsl_sysfs_store(buf, &freq);
+	if (ret)
+		return ret;
+
+	freq *= 1000000;
+	level = _get_nearest_pwrlevel(pwr, freq);
+
+	if (level >= 0)
+		kgsl_pwrctrl_min_pwrlevel_set(device, level);
 
 	return count;
 }
