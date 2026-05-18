@@ -200,7 +200,7 @@ static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
 	}
 
 	/* Hard-force the minimum level to the absolute max level of the table */
-	min_pwrlevel = pwr->num_pwrlevels - 2;
+	min_pwrlevel = pwr->num_pwrlevels - 1;
 
 	if (level < (int)max_pwrlevel)
 		final_level = max_pwrlevel;
@@ -801,8 +801,8 @@ static ssize_t thermal_pwrlevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (level > pwr->num_pwrlevels - 2)
-		level = pwr->num_pwrlevels - 2;
+	if (level > pwr->num_pwrlevels - 1)
+		level = pwr->num_pwrlevels - 1;
 
 	if (kgsl_pwr_limits_set_freq(pwr->sysfs_pwr_limit,
 			pwr->pwrlevels[level].gpu_freq)) {
@@ -876,8 +876,8 @@ static void kgsl_pwrctrl_min_pwrlevel_set(struct kgsl_device *device,
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
 	mutex_lock(&device->mutex);
-	if (level > pwr->num_pwrlevels - 2)
-		level = pwr->num_pwrlevels - 2;
+	if (level > pwr->num_pwrlevels - 1)
+		level = pwr->num_pwrlevels - 1;
 
 	/* You can't set a minimum power level lower than the maximum */
 	if (level < pwr->max_pwrlevel)
@@ -896,18 +896,10 @@ static ssize_t min_pwrlevel_store(struct device *dev,
 				size_t count)
 {
 	struct kgsl_device *device = dev_get_drvdata(dev);
-	int ret;
-	unsigned int level = 0;
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	ret = kgsl_sysfs_store(buf, &level);
-	if (ret)
-		return ret;
-
-	/* Ignore writes from init/system to prevent overriding our defaults */
-	if (current->tgid == 1)
-		return count;
-
-	kgsl_pwrctrl_min_pwrlevel_set(device, level);
+	/* Force min_pwrlevel to the absolute baseline minimum (305MHz) */
+	kgsl_pwrctrl_min_pwrlevel_set(device, pwr->num_pwrlevels - 1);
 
 	return count;
 }
@@ -937,7 +929,7 @@ static int _get_nearest_pwrlevel(struct kgsl_pwrctrl *pwr, unsigned int clock)
 {
 	int i;
 
-	for (i = pwr->num_pwrlevels - 2; i >= 0; i--) {
+	for (i = pwr->num_pwrlevels - 1; i >= 0; i--) {
 		if (abs(pwr->pwrlevels[i].gpu_freq - clock) < 5000000)
 			return i;
 	}
@@ -1370,7 +1362,7 @@ static ssize_t default_pwrlevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (level > pwr->num_pwrlevels - 2)
+	if (level > pwr->num_pwrlevels - 1)
 		goto done;
 
 	mutex_lock(&device->mutex);
@@ -1435,24 +1427,10 @@ static ssize_t min_clock_mhz_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct kgsl_device *device = dev_get_drvdata(dev);
-	int level, ret;
-	unsigned int freq;
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	if (current->parent->pid == 1)
-		return -EINVAL;
-
-	pr_info("Bandido: %s min_clock_mhz_store %s %d\n", current->comm, buf, current->parent->pid);
-
-	ret = kgsl_sysfs_store(buf, &freq);
-	if (ret)
-		return ret;
-
-	freq *= 1000000;
-	level = _get_nearest_pwrlevel(pwr, freq);
-
-	if (level >= 0)
-		kgsl_pwrctrl_min_pwrlevel_set(device, level);
+	/* Force min_pwrlevel to the absolute baseline minimum (305MHz) */
+	kgsl_pwrctrl_min_pwrlevel_set(device, pwr->num_pwrlevels - 1);
 
 	return count;
 }
@@ -2207,7 +2185,7 @@ static bool _gpu_freq_supported(struct kgsl_pwrctrl *pwr, unsigned int freq)
 {
 	int i;
 
-	for (i = pwr->num_pwrlevels - 2; i >= 0; i--) {
+	for (i = pwr->num_pwrlevels - 1; i >= 0; i--) {
 		if (pwr->pwrlevels[i].gpu_freq == freq)
 			return true;
 	}
@@ -2287,7 +2265,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	/* Initialize the user and thermal clock constraints */
 
 	pwr->max_pwrlevel = 0;
-	pwr->min_pwrlevel = pwr->num_pwrlevels - 2;
+	pwr->min_pwrlevel = pwr->num_pwrlevels - 1;
 	pwr->thermal_pwrlevel = 0;
 	pwr->thermal_pwrlevel_floor = pwr->min_pwrlevel;
 

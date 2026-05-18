@@ -783,8 +783,7 @@ int kgsl_pwrscale_init(struct device *dev, const char *governor)
 	/* initialize msm-adreno-tz governor specific data here */
 	data = gpu_profile->private_data;
 
-	data->disable_busy_time_burst = of_property_read_bool(
-		device->pdev->dev.of_node, "qcom,disable-busy-time-burst");
+	data->disable_busy_time_burst = true;
 
 	if (pwrscale->ctxt_aware_enable) {
 		data->ctxt_aware_enable = pwrscale->ctxt_aware_enable;
