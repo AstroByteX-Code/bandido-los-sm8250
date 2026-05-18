@@ -2630,8 +2630,6 @@ static int kgsl_pwrctrl_enable(struct kgsl_device *device)
 	if (pwr->wakeup_maxpwrlevel) {
 		level = pwr->max_pwrlevel;
 		pwr->wakeup_maxpwrlevel = 0;
-	} else if (kgsl_popp_check(device)) {
-		level = pwr->active_pwrlevel;
 	} else {
 		level = pwr->default_pwrlevel;
 	}

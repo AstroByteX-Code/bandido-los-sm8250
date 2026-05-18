@@ -1221,6 +1221,16 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
+	/* For GPU devfreq device, force min_freq writes to the absolute table minimum */
+	if (df->profile && df->profile->freq_table &&
+	    dev_name(df->dev.parent) && strstr(dev_name(df->dev.parent), "kgsl-3d0")) {
+		unsigned long *freq_table = df->profile->freq_table;
+		if (freq_table[0] < freq_table[df->profile->max_state - 1])
+			value = freq_table[0];
+		else
+			value = freq_table[df->profile->max_state - 1];
+	}
+
 	mutex_lock(&df->event_lock);
 	mutex_lock(&df->lock);
 
