@@ -30,6 +30,9 @@
 #include <linux/vib_notifier.h>
 #endif
 
+#undef pr_info
+#define pr_info(fmt, ...) pr_debug(fmt, ##__VA_ARGS__)
+
 #if defined(CONFIG_BATTERY_SAMSUNG)
 #include "../battery_v2/include/sec_charging_common.h"
 #endif
