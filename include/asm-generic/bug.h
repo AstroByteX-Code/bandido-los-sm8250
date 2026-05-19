@@ -203,6 +203,9 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 })
 #endif
 
+#define __WARN_printf(format...) no_printk(format)
+#define __WARN_printf_taint(taint, format...) no_printk(format)
+
 #define WARN_ON_ONCE(condition) WARN_ON(condition)
 #define WARN_ONCE(condition, format...) WARN(condition, format)
 #define WARN_TAINT(condition, taint, format...) WARN(condition, format)
