@@ -495,8 +495,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	 * We'd prefer to avoid failure later on in do_munmap:
 	 * which may split one vma into three before unmapping.
 	 */
-	if (mm->map_count >= sysctl_max_map_count - 3)
-		return -ENOMEM;
+//	if (mm->map_count >= sysctl_max_map_count - 3)
+//		return -ENOMEM;
 
 	if (unlikely(flags & MREMAP_DONTUNMAP))
 		to_account = new_len;
@@ -707,8 +707,8 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	 * Check whether current map count plus 2 still leads us to 4 maps below
 	 * the threshold, otherwise return -ENOMEM here to be more safe.
 	 */
-	if ((mm->map_count + 2) >= sysctl_max_map_count - 3)
-		return -ENOMEM;
+//	if ((mm->map_count + 2) >= sysctl_max_map_count - 3)
+//		return -ENOMEM;
 
 	if (flags & MREMAP_FIXED) {
 		ret = do_munmap(mm, new_addr, new_len, uf_unmap_early);
