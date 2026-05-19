@@ -22,6 +22,7 @@ export ARCH=arm64
 CLANG_TRIPLE=aarch64-linux-gnu
 
 CPU=$(($(nproc) - 3))
+LTO_JOBS=$(($(nproc) / 2)) # Use half for LTO to keep system responsive
 DATE_START=$(date +"%s")
 IMAGE="out/arch/arm64/boot/Image.gz-dtb"
 
@@ -29,7 +30,7 @@ if [[ $1 != "flash" ]]; then
 	#Remove a previous kernel image
 	rm out/arch/arm64/boot/Image* &>/dev/null
 
-	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
+	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
 
 	#Remove "=y" or "is not set"
 	scripts/configcleaner "CONFIG_LTO_CLANG
@@ -40,7 +41,7 @@ CONFIG_PGOUSE_CLANG
 "
 
 	if [[ -v LLVM ]]; then
-		VERSION=$(${CLANG_DIR}clang -dumpversion | cut -d. -f1)
+		VERSION=$(${TC_DIR}/bin/clang -dumpversion)
 		COMPILER="clang$VERSION"
 		echo -e "# CONFIG_LTO_GCC is not set\n" >>out/.config
 		case $1 in
@@ -73,7 +74,7 @@ CONFIG_PGOUSE_CLANG
 			;;
 		esac
 	else
-		VERSION=$(${BUILD_CROSS_COMPILE}gcc -dumpversion | cut -d. -f1)
+		VERSION=$(${BUILD_CROSS_COMPILE}gcc -dumpversion)
 		COMPILER="gcc$VERSION$2"
 		case $1 in
 		lto)
@@ -88,11 +89,11 @@ CONFIG_PGOUSE_CLANG
 		esac
 	fi
 
-	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
 		CLANG_TRIPLE=$CLANG_TRIPLE oldconfig
 
-	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
-		CLANG_TRIPLE=$CLANG_TRIPLE Image.gz-dtb 2>&1 | tee compile-bandido.log
+	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+		CLANG_TRIPLE=$CLANG_TRIPLE LTO_JOBS=$LTO_JOBS Image.gz-dtb 2>&1 | tee compile-bandido.log
 else
 	COMPILER="prebuilt"
 fi

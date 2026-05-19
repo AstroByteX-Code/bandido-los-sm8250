@@ -1006,6 +1006,9 @@ endif
 ifdef CONFIG_THINLTO
 lto-clang-flags	:= -flto=thin
 KBUILD_LDFLAGS	+= --thinlto-cache-dir=.thinlto-cache
+ifdef LTO_JOBS
+KBUILD_LDFLAGS	+= --thinlto-jobs=$(LTO_JOBS)
+endif
 # Limit inlining across translation units to reduce binary size
 LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=5
 else
