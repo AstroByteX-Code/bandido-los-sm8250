@@ -336,7 +336,7 @@ int watermark_boost_factor __read_mostly;
 /* Set watermark_boost_factor 0 by default(disable) */
 int watermark_boost_factor __read_mostly;
 #endif
-int watermark_scale_factor = 10;
+int watermark_scale_factor = 30;
 
 /*
  * Extra memory for the system to try freeing. Used to temporarily
@@ -8106,8 +8106,11 @@ int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
 	if (rc)
 		return rc;
 
-	if (write)
+	if (write) {
+		if (watermark_scale_factor < 30)
+			watermark_scale_factor = 30;
 		setup_per_zone_wmarks();
+	}
 
 	return 0;
 }
