@@ -1000,15 +1000,15 @@ int elevator_init_mq(struct request_queue *q)
 
 	if (unlikely(q->elevator))
 		goto out;
-	if (IS_ENABLED(CONFIG_IOSCHED_BFQ)) {
-		e = elevator_get(q, "bfq", false);
-		if (!e)
-			goto out;
-	} else {
-		e = elevator_get(q, "mq-deadline", false);
-		if (!e)
-			goto out;
+	e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
+	if (!e) {
+		if (IS_ENABLED(CONFIG_IOSCHED_BFQ))
+			e = elevator_get(q, "bfq", false);
+		else
+			e = elevator_get(q, "mq-deadline", false);
 	}
+	if (!e)
+		goto out;
 	err = blk_mq_init_sched(q, e);
 	if (err)
 		elevator_put(e);
