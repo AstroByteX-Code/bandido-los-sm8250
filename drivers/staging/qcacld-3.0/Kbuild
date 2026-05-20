@@ -2289,7 +2289,7 @@ endif
 # Clean up redundant relative paths from includes
 INCS := $(subst $(WLAN_ROOT)/../,$(dir $(WLAN_ROOT)),$(INCS))
 
-ccflags-y += $(sort $(INCS))
+ccflags-y += $(INCS)
 
 cppflags-y +=	-DANI_OS_TYPE_ANDROID=6 \
 		-Wall\
