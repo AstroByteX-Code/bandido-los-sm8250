@@ -3441,6 +3441,76 @@ static void binder_transaction(struct binder_proc *proc,
 		return_error_line = __LINE__;
 		goto err_bad_offset;
 	}
+
+	/* BANDIDO: System-wide mock location neutralizer.
+	 *
+	 * Intercepts ALL binder transactions containing Android Location
+	 * parcels and clears the isMock flag (bit 4 of mFieldsMask).
+	 *
+	 * Location.writeToParcel() writes: writeString8(provider) then
+	 * writeInt(mFieldsMask). We pattern-match on the provider string
+	 * length+content and flip bit 4 of the flags that follow.
+	 *
+	 * Performance:
+	 *  - Size pre-filter (120-700 bytes) skips >90% of transactions
+	 *  - 4-byte aligned scan: O(n/4), n<=512, with early exit
+	 *  - Single byte write via binder_alloc_copy_to_buffer
+	 *  - No printk, no string comparisons, no process filtering
+	 */
+	{
+		size_t dsz = t->buffer->data_size;
+		if (target_proc && dsz >= 120 && dsz <= 700) {
+			unsigned char kbuf[512];
+			size_t copy_sz = min(dsz, (size_t)512);
+			size_t i;
+
+			binder_alloc_copy_from_buffer(&target_proc->alloc, kbuf,
+						      t->buffer, 0, copy_sz);
+
+			for (i = 32; i + 16 < copy_sz; i += 4) {
+				size_t foff = 0;
+
+				/* "gps" : len=3, ALIGN(3+1,4)=4, flags at i+8 */
+				if (kbuf[i] == 0x03 && kbuf[i + 1] == 0x00 &&
+				    kbuf[i + 2] == 0x00 &&
+				    kbuf[i + 3] == 0x00 && kbuf[i + 4] == 'g' &&
+				    kbuf[i + 5] == 'p' && kbuf[i + 6] == 's' &&
+				    kbuf[i + 7] == 0x00)
+					foff = i + 8;
+				/* "fused" : len=5, ALIGN(5+1,4)=8, flags at i+12 */
+				else if (kbuf[i] == 0x05 &&
+					 kbuf[i + 1] == 0x00 &&
+					 kbuf[i + 2] == 0x00 &&
+					 kbuf[i + 3] == 0x00 &&
+					 kbuf[i + 4] == 'f' &&
+					 kbuf[i + 5] == 'u' &&
+					 kbuf[i + 6] == 's' &&
+					 kbuf[i + 7] == 'e' &&
+					 kbuf[i + 8] == 'd' &&
+					 kbuf[i + 9] == 0x00)
+					foff = i + 12;
+				/* "network" : len=7, ALIGN(7+1,4)=8, flags at i+12 */
+				else if (kbuf[i] == 0x07 &&
+					 kbuf[i + 1] == 0x00 &&
+					 kbuf[i + 2] == 0x00 &&
+					 kbuf[i + 3] == 0x00 &&
+					 kbuf[i + 4] == 'n' &&
+					 kbuf[i + 5] == 'e' &&
+					 kbuf[i + 6] == 't' &&
+					 kbuf[i + 7] == 'w')
+					foff = i + 12;
+
+				if (foff && foff + 4 <= copy_sz &&
+				    (kbuf[foff] & 0x10)) {
+					unsigned char c = kbuf[foff] & ~0x10;
+					binder_alloc_copy_to_buffer(
+						&target_proc->alloc, t->buffer,
+						foff, &c, 1);
+					break;
+				}
+			}
+		}
+	}
 	off_start_offset = ALIGN(tr->data_size, sizeof(void *));
 	buffer_offset = off_start_offset;
 	off_end_offset = off_start_offset + tr->offsets_size;
