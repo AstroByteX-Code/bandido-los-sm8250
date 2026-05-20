@@ -54,6 +54,9 @@ choice
 	config DEFAULT_CFQ
 		bool "CFQ" if IOSCHED_CFQ=y
 
+	config DEFAULT_KYBER
+		bool "Kyber" if MQ_IOSCHED_KYBER=y
+
 	config DEFAULT_NOOP
 		bool "No-op"
 
@@ -63,6 +66,7 @@ config DEFAULT_IOSCHED
 	string
 	default "deadline" if DEFAULT_DEADLINE
 	default "cfq" if DEFAULT_CFQ
+	default "kyber" if DEFAULT_KYBER
 	default "noop" if DEFAULT_NOOP
 
 config MQ_IOSCHED_DEADLINE
