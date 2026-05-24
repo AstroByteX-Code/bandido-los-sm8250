@@ -15649,7 +15649,9 @@ csr_validate_and_update_fils_info(struct mac_context *mac,
 				  struct bss_description *bss_desc,
 				  struct join_req *csr_join_req,
 				  uint8_t vdev_id)
-{ }
+{
+	return QDF_STATUS_SUCCESS;
+}
 #endif
 
 #ifdef WLAN_FEATURE_SAE

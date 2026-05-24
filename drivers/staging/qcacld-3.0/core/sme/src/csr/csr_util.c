@@ -2936,6 +2936,7 @@ uint8_t csr_construct_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 	wlan_crypto_set_vdev_param(vdev, WLAN_CRYPTO_PARAM_RSN_CAP,
 				   self_rsn_cap);
 	qdf_mem_zero(&pmksa, sizeof(pmksa));
+#ifdef WLAN_FEATURE_FILS_SK
 	if (pSirBssDesc->fils_info_element.is_cache_id_present) {
 		pmksa.ssid_len =
 			pProfile->SSIDs.SSIDList[0].SSID.length;
@@ -2951,6 +2952,10 @@ uint8_t csr_construct_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 		qdf_mem_copy(&pmksa.bssid,
 			     pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
 	}
+#else
+	qdf_mem_copy(&pmksa.bssid,
+		     pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
+#endif
 	pmksa_peer = wlan_crypto_get_peer_pmksa(vdev, &pmksa);
 	qdf_mem_zero(&pmksa, sizeof(pmksa));
 	/*

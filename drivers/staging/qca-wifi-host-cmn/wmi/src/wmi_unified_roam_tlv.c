@@ -1038,8 +1038,13 @@ fill_roam_offload_11r_params(uint32_t auth_mode,
 
 	if (auth_mode == WMI_AUTH_FT_RSNA_FILS_SHA256 ||
 	    auth_mode == WMI_AUTH_FT_RSNA_FILS_SHA384) {
+#ifdef WLAN_FEATURE_FILS_SK
 		psk_msk = roam_req->roam_fils_params.fils_ft;
 		len = roam_req->roam_fils_params.fils_ft_len;
+#else
+		psk_msk = NULL;
+		len = 0;
+#endif
 	} else {
 		psk_msk = roam_req->psk_pmk;
 		len = roam_req->pmk_len;

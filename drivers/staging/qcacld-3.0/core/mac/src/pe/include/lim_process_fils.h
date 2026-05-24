@@ -262,7 +262,7 @@ static inline
 QDF_STATUS lim_create_fils_auth_data(struct mac_context *mac_ctx,
 				     tpSirMacAuthFrameBody auth_frame,
 				     struct pe_session *session,
-				     uint32_t *frame_len);
+				     uint32_t *frame_len)
 {
 	return QDF_STATUS_SUCCESS;
 }
