@@ -308,7 +308,7 @@ extern int kptr_restrict;
 #define pr_notice(fmt, ...) \
 	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
-	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+	no_printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 /*
  * Like KERN_CONT, pr_cont() should only be used when continuing
  * a line with no newline ('\n') enclosed. Otherwise it defaults
