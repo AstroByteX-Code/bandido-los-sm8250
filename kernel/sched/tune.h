@@ -17,6 +17,32 @@ int schedtune_task_boost(struct task_struct *tsk);
 
 int schedtune_prefer_idle(struct task_struct *tsk);
 
+/*
+ * Identifies threads that directly participate in UI frame delivery.
+ * Used to apply extra scheduling priority independent of cgroup membership,
+ * since top-app cgroup includes unrelated services (keyboard, cameraserver).
+ *
+ * Note: task_struct->comm is at most TASK_COMM_LEN-1 (15) chars.
+ */
+static inline bool is_ui_thread(struct task_struct *p)
+{
+	const char *comm = p->comm;
+	char c = comm[0];
+
+	/* Fast-fail filter: only perform strcmp if first char matches a UI thread name */
+	if (c != 'R' && c != 's' && c != 'a' && c != 'H')
+		return false;
+
+	return !strcmp(comm, "RenderThread")    ||
+	       !strcmp(comm, "RenderEngine")    ||
+	       !strcmp(comm, "surfaceflinger")  ||
+	       !strcmp(comm, "android.display") ||
+	       !strcmp(comm, "android.anim")    ||
+	       !strcmp(comm, "android.ui")      ||
+	       !strncmp(comm, "HwBinder", 8);
+}
+
+
 void schedtune_enqueue_task(struct task_struct *p, int cpu);
 void schedtune_dequeue_task(struct task_struct *p, int cpu);
 

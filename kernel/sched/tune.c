@@ -14,7 +14,7 @@ bool schedtune_initialized = false;
 extern struct reciprocal_value schedtune_spc_rdiv;
 
 /* We hold schedtune boost in effect for at least this long */
-#define SCHEDTUNE_BOOST_HOLD_NS 50000000ULL
+#define SCHEDTUNE_BOOST_HOLD_NS 150000000ULL
 
 /*
  * EAS scheduler tunables for task groups.
@@ -162,7 +162,7 @@ root_schedtune = {
  *    implementation especially for the computation of the per-CPU boost
  *    value
  */
-#define BOOSTGROUPS_COUNT 6
+#define BOOSTGROUPS_COUNT 8
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
@@ -539,6 +539,15 @@ int schedtune_cpu_boost_with(int cpu, struct task_struct *p)
 	return max(bg->boost_max, task_boost);
 }
 
+/*
+ * Additional boost applied to known UI rendering threads.
+ * These threads directly determine frame delivery latency.
+ * Applied on top of the cgroup boost, capped at 100.
+ */
+#define SCHEDTUNE_UI_THREAD_BOOST_BONUS 25
+
+extern bool lcd_is_on;
+
 int schedtune_task_boost(struct task_struct *p)
 {
 	struct schedtune *st;
@@ -552,6 +561,18 @@ int schedtune_task_boost(struct task_struct *p)
 	st = task_schedtune(p);
 	task_boost = st->boost;
 	rcu_read_unlock();
+
+#ifdef CONFIG_SCHED_WALT
+	/*
+	 * Layer 2: Apply additional boost for known UI rendering threads.
+	 * Pushes these threads towards bigger cores regardless of which
+	 * cgroup they currently reside in (top-app membership is transient).
+	 * Only applied when the screen is on to save battery.
+	 */
+	if (lcd_is_on && task_boost < 100 && is_ui_thread(p)) {
+		task_boost = min(100, task_boost + SCHEDTUNE_UI_THREAD_BOOST_BONUS);
+	}
+#endif
 
 	return task_boost;
 }
@@ -568,6 +589,18 @@ int schedtune_prefer_idle(struct task_struct *p)
 	rcu_read_lock();
 	st = task_schedtune(p);
 	prefer_idle = st->prefer_idle;
+#ifdef CONFIG_SCHED_WALT
+	/*
+	 * Layer 1: Force prefer_idle for tasks in colocated groups (top-app).
+	 * colocate=1 is exclusive to top-app in this ROM's cgroup hierarchy.
+	 * Ensures wakeups land on idle CPUs for lower scheduling latency,
+	 * regardless of what userspace configured (currently prefer_idle=0).
+	 * Only applied when the screen is on to save battery.
+	 */
+	if (lcd_is_on && !prefer_idle && st->colocate) {
+		prefer_idle = 1;
+	}
+#endif
 	rcu_read_unlock();
 
 	return prefer_idle;

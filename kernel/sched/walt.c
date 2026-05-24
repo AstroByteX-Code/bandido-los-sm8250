@@ -2729,12 +2729,30 @@ void update_best_cluster(struct related_thread_group *grp,
 		grp->downmigrate_ts = 0;
 }
 
+extern bool lcd_is_on;
+
 int preferred_cluster(struct sched_cluster *cluster, struct task_struct *p)
 {
 	struct related_thread_group *grp;
 	int rc = -1;
 
 	rcu_read_lock();
+
+#ifdef CONFIG_SCHED_TUNE
+	/*
+	 * Layer 4: UI threads always prefer non-little clusters.
+	 * RTG membership is tied to top-app cgroup, which is transient —
+	 * tasks can be demoted to foreground right before a touch event.
+	 * By anchoring UI threads to big cores via name detection, we
+	 * avoid the latency spike of migrating back on the first frame.
+	 * Only applied when the screen is on to save battery.
+	 */
+	if (lcd_is_on && is_ui_thread(p)) {
+		rc = !is_min_capacity_cluster(cluster);
+		rcu_read_unlock();
+		return rc;
+	}
+#endif
 
 	grp = task_related_thread_group(p);
 	if (grp)
