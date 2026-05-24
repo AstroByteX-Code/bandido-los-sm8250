@@ -664,6 +664,7 @@ static inline void copy_vdev_create_pdev_id(
 
 void wmi_mtrace(uint32_t message_id, uint16_t vdev_id, uint32_t data)
 {
+	return;
 	uint16_t mtrace_message_id;
 
 	mtrace_message_id = QDF_WMI_MTRACE_CMD_ID(message_id) |
