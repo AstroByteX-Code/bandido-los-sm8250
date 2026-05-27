@@ -163,7 +163,7 @@ static void dsi_display_set_ctrl_esd_check_flag(struct dsi_display *display,
 		if (!ctrl)
 			continue;
 		ctrl->ctrl->esd_check_underway = enable;
-		DSI_INFO("%ps ctrl->ctrl->esd_check_underway = %d\n", __builtin_return_address(0), ctrl->ctrl->esd_check_underway);
+		DSI_DEBUG("%ps ctrl->ctrl->esd_check_underway = %d\n", __builtin_return_address(0), ctrl->ctrl->esd_check_underway);
 	}
 }
 
@@ -7026,9 +7026,9 @@ int dsi_display_set_mode(struct dsi_display *display,
 		goto error;
 	}
 
-	DSI_INFO("mdp_transfer_time_us=%d us\n",
+	DSI_DEBUG("mdp_transfer_time_us=%d us\n",
 			adj_mode.priv_info->mdp_transfer_time_us);
-	DSI_INFO("hactive= %d,vactive= %d,fps=%d\n",
+	DSI_DEBUG("hactive= %d,vactive= %d,fps=%d\n",
 			timing.h_active, timing.v_active,
 			timing.refresh_rate);
 
