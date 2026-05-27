@@ -145,6 +145,15 @@
 #define input_raw_data_clear() {}
 #endif
 
+#undef input_dbg
+#define input_dbg(mode, dev, fmt, ...)  do { } while (0)
+
+#undef input_info
+#define input_info(mode, dev, fmt, ...) do { } while (0)
+
+#undef input_err
+#define input_err(mode, dev, fmt, ...)  do { } while (0)
+
 /*
  * The event structure itself
  * Note that __USE_TIME_BITS64 is defined by libc based on

@@ -873,32 +873,9 @@ typedef struct _deviceInfo {
 // #define ALS_DBG
 // #define ALS_INFO
 
-#ifndef ALS_dbg
-#ifdef ALS_DBG
-#define ALS_dbg(format, arg...)		\
-				printk(KERN_DEBUG "ALS_dbg : "format, ##arg)
-#define ALS_err(format, arg...)		\
-				printk(KERN_DEBUG "ALS_err : "format, ##arg)
-#else
-#define ALS_dbg(format, arg...)		{if (als_debug)\
-				printk(KERN_DEBUG "ALS_dbg : "format, ##arg);\
-					}
-#define ALS_err(format, arg...)		{if (als_debug)\
-				printk(KERN_DEBUG "ALS_err : "format, ##arg);\
-					}
-#endif
-#endif
-
-#ifndef ALS_info
-#ifdef ALS_INFO
-#define ALS_info(format, arg...)	\
-				printk(KERN_INFO "ALS_info : "format, ##arg)
-#else
-#define ALS_info(format, arg...)	{if (als_info)\
-				printk(KERN_INFO "ALS_info : "format, ##arg);\
-					}
-#endif
-#endif
+#define ALS_dbg(format, arg...)         do { } while (0)
+#define ALS_err(format, arg...)         do { } while (0)
+#define ALS_info(format, arg...)        do { } while (0)
 
 enum {
 	DEBUG_REG_STATUS = 1,
