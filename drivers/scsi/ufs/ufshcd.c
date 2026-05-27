@@ -228,7 +228,7 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
 				 UTP_TASK_REQ_COMPL |\
 				 UFSHCD_ERROR_MASK)
 /* UIC command timeout, unit: ms */
-#define UIC_CMD_TIMEOUT	500
+#define UIC_CMD_TIMEOUT	3000
 
 /* NOP OUT retries waiting for NOP IN response */
 #define NOP_OUT_RETRIES    10
@@ -2275,7 +2275,7 @@ out:
 
 static int ufshcd_clock_scaling_prepare(struct ufs_hba *hba)
 {
-	#define DOORBELL_CLR_TOUT_US		(1000 * 1000) /* 1 sec */
+	#define DOORBELL_CLR_TOUT_US		(40 * 1000 * 1000) /* 1 sec */
 	int ret = 0;
 	/*
 	 * make sure that there are no outstanding requests when
@@ -13418,6 +13418,8 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	ufs_sysfs_add_nodes(hba->dev);
 
 	ufshcd_add_sysfs_nodes(hba);
+
+	device_enable_async_suspend(dev);
 
 	return 0;
 
