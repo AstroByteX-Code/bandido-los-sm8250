@@ -790,15 +790,12 @@ POLLY := -mllvm -polly \
 endif
 
 LLVMPARAMS := \
-  -mllvm -inlinecold-threshold=2 \
-  -mllvm -inline-threshold=40 \
-  -mllvm -inlinehint-threshold=300 \
-  -mllvm -inline-cold-callsite-threshold=2 \
-  -mllvm -locally-hot-callsite-threshold=50 \
-  -mllvm -inline-enable-cost-benefit-analysis=true \
-  -mllvm -enable-loop-distribute=true \
-  -mllvm -enable-loopinterchange=true \
-  -mllvm -enable-loop-flatten=true
+  -mllvm -inlinecold-threshold=12 \
+  -mllvm -inline-threshold=90 \
+  -mllvm -inlinehint-threshold=350 \
+  -mllvm -inline-cold-callsite-threshold=12 \
+  -mllvm -locally-hot-callsite-threshold=100 \
+  -mllvm -inline-enable-cost-benefit-analysis=true
 
 LLVMPARAMS_LINK := \
   -mllvm -enable-merge-functions=true
@@ -810,8 +807,8 @@ KBUILD_CFLAGS += $(COPTS)
 LDFINAL += $(POLLY) $(LLVMPARAMS) $(LLVMPARAMS_LINK)
 export LDFINAL
 
-BOPTS := -O2 -falign-functions=16 -falign-loops=16
-BOPTS2 := -O3 -falign-functions=32 -falign-loops=32 \
+BOPTS := -O2 -falign-functions=8 -falign-loops=8
+BOPTS2 := -O3 -falign-functions=16 -falign-loops=16 \
   -mllvm -enable-unroll-and-jam=true
 export BOPTS BOPTS2
 
