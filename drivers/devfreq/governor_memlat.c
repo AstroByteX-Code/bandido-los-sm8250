@@ -355,7 +355,7 @@ static struct attribute_group compute_dev_attr_group = {
 };
 
 #define MIN_MS	0U
-#define MAX_MS	500U
+#define MAX_MS	16U
 static int devfreq_memlat_ev_handler(struct devfreq *df,
 					unsigned int event, void *data)
 {

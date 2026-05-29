@@ -162,11 +162,11 @@ show_list_attr(__attr, n)			\
 store_list_attr(__attr, n, (min), (max))	\
 static DEVICE_ATTR(__attr, 0644, show_list_##__attr, store_list_##__attr)
 
-#define MIN_MS	10U
-#define MAX_MS	500U
+#define MIN_MS	8U
+#define MAX_MS	16U
 
-#define SAMPLE_MIN_MS	1U
-#define SAMPLE_MAX_MS	50U
+#define SAMPLE_MIN_MS	2U
+#define SAMPLE_MAX_MS	16U
 
 /* Returns MBps of read/writes for the sampling window. */
 static unsigned long bytes_to_mbps(unsigned long long bytes, unsigned int us)
