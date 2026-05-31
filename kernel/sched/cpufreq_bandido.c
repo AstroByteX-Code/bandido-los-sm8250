@@ -149,6 +149,14 @@ static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 	sg_policy->next_freq = next_freq;
 }
 
+static inline bool sugov_rtg_boost_active(struct sugov_cpu *sg_cpu)
+{
+	struct rq *rq = cpu_rq(sg_cpu->cpu);
+
+	return sg_cpu->walt_load.rtgb_active &&
+	       (rq->grp_time.curr_runnable_sum > 0 || rq->grp_time.prev_runnable_sum > 0);
+}
+
 static unsigned long bandido_map_util_freq(unsigned long util,
 					unsigned long freq, unsigned long cap,
 					struct sugov_cpu *sg_cpu)
@@ -165,7 +173,7 @@ static unsigned long bandido_map_util_freq(unsigned long util,
 	/* RTG Boost: SOFTENED jump to ~56% of max frequency for UI fluidity.
 	 * Use as a floor to ensure fluidity without capping performance under load.
 	 */
-	if (sg_cpu->walt_load.rtgb_active) {
+	if (sugov_rtg_boost_active(sg_cpu)) {
 		unsigned long boost_f = (freq + (freq >> 3)) >> 1;
 		if (boost_f > next_f)
 			next_f = boost_f;
@@ -340,7 +348,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	 */
 	if (!sugov_should_update_freq(sg_policy, time) &&
 	    next_f < (sg_policy->next_freq + (sg_policy->next_freq / 5)) &&
-	    !sg_cpu->walt_load.rtgb_active)
+	    !sugov_rtg_boost_active(sg_cpu))
 		return;
 
 	sugov_fast_switch(sg_policy, time, next_f);
@@ -405,7 +413,7 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	 */
 	if (!sugov_should_update_freq(sg_policy, time) &&
 	    next_f < (sg_policy->next_freq + (sg_policy->next_freq / 5)) &&
-	    !sg_cpu->walt_load.rtgb_active) {
+	    !sugov_rtg_boost_active(sg_cpu)) {
 		raw_spin_unlock(&sg_policy->update_lock);
 		return;
 	}

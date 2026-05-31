@@ -307,12 +307,20 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
 #define DEFAULT_CPU4_RTG_BOOST_FREQ 0
 #define DEFAULT_CPU7_RTG_BOOST_FREQ 0
 
+static inline bool sugov_rtg_boost_active(struct sugov_cpu *sg_cpu)
+{
+	struct rq *rq = cpu_rq(sg_cpu->cpu);
+
+	return sg_cpu->walt_load.rtgb_active &&
+	       (rq->grp_time.curr_runnable_sum > 0 || rq->grp_time.prev_runnable_sum > 0);
+}
+
 static void sugov_walt_adjust(struct sugov_cpu *sg_cpu, unsigned long *util,
 			      unsigned long *max)
 {
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	bool is_migration = sg_cpu->flags & SCHED_CPUFREQ_INTERCLUSTER_MIG;
-	bool is_rtg_boost = sg_cpu->walt_load.rtgb_active;
+	bool is_rtg_boost = sugov_rtg_boost_active(sg_cpu);
 	unsigned long nl = sg_cpu->walt_load.nl;
 	unsigned long cpu_util = sg_cpu->util;
 	bool is_hiload;
