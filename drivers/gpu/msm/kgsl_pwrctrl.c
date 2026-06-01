@@ -12,6 +12,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include <linux/cred.h>
+#include <linux/uidgid.h>
 
 #include "kgsl_device.h"
 #include "kgsl_pwrscale.h"
@@ -198,9 +200,6 @@ static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
 	}
 	break;
 	}
-
-	/* Hard-force the minimum level to the absolute max level of the table */
-	min_pwrlevel = pwr->num_pwrlevels - 1;
 
 	if (level < (int)max_pwrlevel)
 		final_level = max_pwrlevel;
@@ -1431,8 +1430,8 @@ static ssize_t min_clock_mhz_store(struct device *dev,
 	unsigned int freq;
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	if (current->parent->pid == 1)
-		return -EINVAL;
+	if (current_uid().val != 0 && current_uid().val != 2000)
+		return -EPERM;
 
 	pr_info("Bandido: %s min_clock_mhz_store %s %d\n", current->comm, buf, current->parent->pid);
 
@@ -1466,8 +1465,8 @@ static ssize_t max_clock_mhz_store(struct device *dev,
 	unsigned int val = 0;
 	int ret;
 
-	if (current->parent->pid == 1)
-		return -EINVAL;
+	if (current_uid().val != 0 && current_uid().val != 2000)
+		return -EPERM;
 
 	pr_info("Bandido: %s max_clock_mhz_store %s %d\n", current->comm, buf, current->parent->pid);
 
