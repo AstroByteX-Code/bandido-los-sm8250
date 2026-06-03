@@ -16,6 +16,7 @@
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
 #include "blk-wbt.h"
+#include <linux/sched.h>
 
 struct queue_sysfs_entry {
 	struct attribute attr;
@@ -102,13 +103,10 @@ queue_ra_store(struct request_queue *q, const char *page, size_t count)
 {
 	unsigned long ra_kb;
 	ssize_t ret;
-	static const char temp[] = "temporary ";
 
-	/* IOPP-ra-v2.1.4.14 */
-	if (strncmp(page, temp, sizeof(temp) - 1) != 0)
+	/* Ignorar escritas vindas do init (PID 1) ou processos filhos do init (PPID 1, e.g. *.rc) */
+	if (task_tgid_vnr(current) == 1 || task_ppid_nr(current) == 1)
 		return count;
-	
-	page += sizeof(temp) - 1;
 
 	ret = queue_var_store(&ra_kb, page, count);
 
