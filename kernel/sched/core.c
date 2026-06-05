@@ -7716,21 +7716,6 @@ void sched_online_group(struct task_group *tg, struct task_group *parent)
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	online_fair_sched_group(tg);
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	if (tg->css.cgroup) {
-		char name[64];
-		if (cgroup_name(tg->css.cgroup, name, sizeof(name)) >= 0) {
-			if (strcmp(name, "background") == 0) {
-				sched_group_set_shares(tg, scale_load(52));
-			} else if (strcmp(name, "system-background") == 0) {
-				sched_group_set_shares(tg, scale_load(263));
-			} else if (strcmp(name, "dex2oat") == 0) {
-				sched_group_set_shares(tg, scale_load(52));
-			}
-		}
-	}
-#endif
 }
 
 /* rcu callback to free various structures associated with a task group */
