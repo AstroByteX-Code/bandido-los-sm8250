@@ -8024,16 +8024,7 @@ int __meminit init_per_zone_wmark_min(void)
 	lowmem_kbytes = nr_free_buffer_pages() * (PAGE_SIZE >> 10);
 	new_min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
 
-	if (new_min_free_kbytes > user_min_free_kbytes) {
-		min_free_kbytes = new_min_free_kbytes;
-		if (min_free_kbytes < 65536)
-			min_free_kbytes = 65536;
-		if (min_free_kbytes > 131072)
-			min_free_kbytes = 131072;
-	} else {
-		pr_warn("min_free_kbytes is not updated to %d because user defined value %d is preferred\n",
-				new_min_free_kbytes, user_min_free_kbytes);
-	}
+	min_free_kbytes = 131072;
 	setup_per_zone_wmarks();
 	refresh_zone_stat_thresholds();
 	setup_per_zone_lowmem_reserve();
@@ -8057,17 +8048,12 @@ postcore_initcall(init_per_zone_wmark_min)
 int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *length, loff_t *ppos)
 {
-	int rc;
-
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc)
-		return rc;
-
 	if (write) {
-		user_min_free_kbytes = min_free_kbytes;
-		setup_per_zone_wmarks();
+		/* Ignore user-space overrides to preserve optimal watermarks */
+		return 0;
 	}
-	return 0;
+
+	return proc_dointvec_minmax(table, write, buffer, length, ppos);
 }
 
 int watermark_boost_factor_sysctl_handler(struct ctl_table *table, int write,
