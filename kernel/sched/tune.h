@@ -24,13 +24,13 @@ int schedtune_prefer_idle(struct task_struct *tsk);
  *
  * Note: task_struct->comm is at most TASK_COMM_LEN-1 (15) chars.
  */
-static inline bool is_ui_thread(struct task_struct *p)
+static inline bool is_ui_thread_name(struct task_struct *p)
 {
 	const char *comm = p->comm;
 	char c = comm[0];
 
 	/* Fast-fail filter: only perform strcmp if first char matches a UI thread name */
-	if (c != 'R' && c != 's' && c != 'a' && c != 'H')
+	if (c != 'R' && c != 's' && c != 'a' && c != 'H' && c != 'd' && c != 'T' && c != 'I')
 		return false;
 
 	return !strcmp(comm, "RenderThread")    ||
@@ -39,7 +39,16 @@ static inline bool is_ui_thread(struct task_struct *p)
 	       !strcmp(comm, "android.display") ||
 	       !strcmp(comm, "android.anim")    ||
 	       !strcmp(comm, "android.ui")      ||
-	       !strncmp(comm, "HwBinder", 8);
+	       !strncmp(comm, "HwBinder", 8)    ||
+	       !strncmp(comm, "droid.launcher", 14) ||
+	       !strcmp(comm, "TASKBAR_UI_THRE") ||
+	       !strcmp(comm, "InputReader")     ||
+	       !strcmp(comm, "InputDispatcher");
+}
+
+static inline bool is_ui_thread(struct task_struct *p)
+{
+	return p->is_ui;
 }
 
 

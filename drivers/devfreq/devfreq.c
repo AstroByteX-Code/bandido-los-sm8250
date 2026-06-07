@@ -1277,6 +1277,17 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
+	/* Force max_freq writes to the absolute maximum for CPU bandwidth nodes */
+	if (df->profile && df->profile->freq_table && dev_name(df->dev.parent) &&
+	    (strstr(dev_name(df->dev.parent), "cpu-llcc-ddr-bw") ||
+	     strstr(dev_name(df->dev.parent), "cpu-cpu-llcc-bw"))) {
+		unsigned long *freq_table = df->profile->freq_table;
+		if (freq_table[0] < freq_table[df->profile->max_state - 1])
+			value = freq_table[df->profile->max_state - 1];
+		else
+			value = freq_table[0];
+	}
+
 	mutex_lock(&df->event_lock);
 	mutex_lock(&df->lock);
 

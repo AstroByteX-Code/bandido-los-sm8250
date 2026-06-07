@@ -1770,6 +1770,12 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	rq = task_rq_lock(p, &rf);
 	update_rq_clock(rq);
 
+#ifdef CONFIG_SCHED_TUNE
+	if (is_ui_thread(p)) {
+		new_mask = cpu_active_mask;
+	}
+#endif
+
 	if (p->flags & PF_KTHREAD) {
 		/*
 		 * Kernel threads are allowed on online && !active CPUs

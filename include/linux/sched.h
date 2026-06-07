@@ -599,6 +599,7 @@ extern void sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin,
 extern int sched_set_boost(int enable);
 extern void free_task_load_ptrs(struct task_struct *p);
 extern void sched_set_refresh_rate(enum fps fps);
+extern void sched_update_is_ui(struct task_struct *p);
 
 #define RAVG_HIST_SIZE_MAX 5
 #define NUM_BUSY_BUCKETS 10
@@ -897,6 +898,7 @@ struct task_struct {
 	u32 unfilter;
 	bool low_latency;
 	bool rtg_high_prio;
+	bool is_ui;
 #endif
 
 #ifdef CONFIG_CGROUP_SCHED

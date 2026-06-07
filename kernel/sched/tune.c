@@ -552,6 +552,7 @@ int schedtune_task_boost(struct task_struct *p)
 {
 	struct schedtune *st;
 	int task_boost;
+	bool is_colocate = false;
 
 	if (unlikely(!schedtune_initialized))
 		return 0;
@@ -560,6 +561,9 @@ int schedtune_task_boost(struct task_struct *p)
 	rcu_read_lock();
 	st = task_schedtune(p);
 	task_boost = st->boost;
+#ifdef CONFIG_SCHED_WALT
+	is_colocate = st->colocate;
+#endif
 	rcu_read_unlock();
 
 #ifdef CONFIG_SCHED_WALT
@@ -569,8 +573,11 @@ int schedtune_task_boost(struct task_struct *p)
 	 * cgroup they currently reside in (top-app membership is transient).
 	 * Only applied when the screen is on to save battery.
 	 */
-	if (lcd_is_on && task_boost < 100 && is_ui_thread(p)) {
-		task_boost = min(100, task_boost + SCHEDTUNE_UI_THREAD_BOOST_BONUS);
+	if (lcd_is_on && task_boost < 100) {
+		if (is_ui_thread(p))
+			task_boost = min(100, task_boost + 60); /* 60% boost for critical UI/Input threads */
+		else if (is_colocate && p->pid == p->tgid)
+			task_boost = min(100, task_boost + SCHEDTUNE_UI_THREAD_BOOST_BONUS);
 	}
 #endif
 
@@ -591,13 +598,13 @@ int schedtune_prefer_idle(struct task_struct *p)
 	prefer_idle = st->prefer_idle;
 #ifdef CONFIG_SCHED_WALT
 	/*
-	 * Layer 1: Force prefer_idle for tasks in colocated groups (top-app).
+	 * Layer 1: Force prefer_idle for tasks in colocated groups (top-app) or UI/Input threads.
 	 * colocate=1 is exclusive to top-app in this ROM's cgroup hierarchy.
 	 * Ensures wakeups land on idle CPUs for lower scheduling latency,
 	 * regardless of what userspace configured (currently prefer_idle=0).
 	 * Only applied when the screen is on to save battery.
 	 */
-	if (lcd_is_on && !prefer_idle && st->colocate) {
+	if (lcd_is_on && !prefer_idle && (st->colocate || is_ui_thread(p))) {
 		prefer_idle = 1;
 	}
 #endif

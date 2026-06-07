@@ -2706,9 +2706,8 @@ void update_best_cluster(struct related_thread_group *grp,
 		demand = sched_group_upmigrate;
 
 	if (!grp->skip_min) {
-		if (demand >= sched_group_upmigrate) {
+		if (demand >= sched_group_upmigrate)
 			grp->skip_min = true;
-		}
 		return;
 	}
 	if (demand < sched_group_downmigrate) {
@@ -3770,9 +3769,9 @@ EXPORT_SYMBOL(sched_set_refresh_rate);
 
 /* Migration margins */
 unsigned int sysctl_sched_capacity_margin_up[MAX_MARGIN_LEVELS] = {
-			[0 ... MAX_MARGIN_LEVELS-1] = 1078}; /* ~5% margin */
+			[0 ... MAX_MARGIN_LEVELS-1] = 1138}; /* ~90% upmigrate */
 unsigned int sysctl_sched_capacity_margin_down[MAX_MARGIN_LEVELS] = {
-			[0 ... MAX_MARGIN_LEVELS-1] = 1205}; /* ~15% margin */
+			[0 ... MAX_MARGIN_LEVELS-1] = 2560}; /* ~40% downmigrate */
 
 #ifdef CONFIG_PROC_SYSCTL
 static void sched_update_updown_migrate_values(bool up)
@@ -3816,60 +3815,14 @@ int sched_updown_migrate_handler(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
 {
-	int ret, i;
-	unsigned int *data = (unsigned int *)table->data;
-	unsigned int *old_val;
-	static DEFINE_MUTEX(mutex);
-	int cap_margin_levels = num_sched_clusters ? num_sched_clusters - 1 : 0;
+	if (!write)
+		return proc_douintvec_capacity(table, write, buffer, lenp, ppos);
 
-	if (cap_margin_levels <= 0)
-		return -EINVAL;
-
-	mutex_lock(&mutex);
-
-	if (table->maxlen != (sizeof(unsigned int) * cap_margin_levels))
-		table->maxlen = sizeof(unsigned int) * cap_margin_levels;
-
-	if (!write) {
-		ret = proc_douintvec_capacity(table, write, buffer, lenp, ppos);
-		goto unlock_mutex;
-	}
-
-	/*
-	 * Cache the old values so that they can be restored
-	 * if either the write fails (for example out of range values)
-	 * or the downmigrate and upmigrate are not in sync.
-	 */
-	old_val = kmemdup(data, table->maxlen, GFP_KERNEL);
-	if (!old_val) {
-		ret = -ENOMEM;
-		goto unlock_mutex;
-	}
-
-	ret = proc_douintvec_capacity(table, write, buffer, lenp, ppos);
-
-	if (ret) {
-		memcpy(data, old_val, table->maxlen);
-		goto free_old_val;
-	}
-
-	for (i = 0; i < cap_margin_levels; i++) {
-		if (sysctl_sched_capacity_margin_up[i] >
-				sysctl_sched_capacity_margin_down[i]) {
-			memcpy(data, old_val, table->maxlen);
-			ret = -EINVAL;
-			goto free_old_val;
-		}
-	}
-
-	sched_update_updown_migrate_values(data ==
-					&sysctl_sched_capacity_margin_up[0]);
-
-free_old_val:
-	kfree(old_val);
-unlock_mutex:
-	mutex_unlock(&mutex);
-
-	return ret;
+	return 0; /* Ignore user-space writes and preserve the hardcoded 90/40 defaults */
 }
 #endif
+
+void sched_update_is_ui(struct task_struct *p)
+{
+	p->is_ui = is_ui_thread_name(p);
+}
