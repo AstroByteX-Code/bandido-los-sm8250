@@ -733,6 +733,17 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	if (boost < 0 || boost > 100)
 		return -EINVAL;
 
+	if (css->cgroup) {
+		char name[32];
+		if (cgroup_name(css->cgroup, name, sizeof(name)) >= 0) {
+			if (strcmp(name, "foreground") == 0) {
+				if (boost < 10) boost = 10;
+			} else if (strcmp(name, "top-app") == 0) {
+				if (boost < 20) boost = 20;
+			}
+		}
+	}
+
 	st->boost = boost;
 
 	/* Update CPU boost */
