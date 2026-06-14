@@ -30,15 +30,28 @@ static inline bool is_ui_thread_name(struct task_struct *p)
 	char c = comm[0];
 
 	/* Fast-fail filter: only perform strcmp if first char matches a UI thread name */
-	if (c != 'R' && c != 's' && c != 'a' && c != 'H' && c != 'd' && c != 'T' && c != 'I')
+	if (c != 'R' && c != 's' && c != 'a' && c != 'H' && c != 'd' && c != 'T' && c != 'I' &&
+	    c != 'n' && c != 'w' && c != 'A' && c != 'N' && c != 'S')
 		return false;
 
 	return !strcmp(comm, "RenderThread")    ||
 	       !strcmp(comm, "RenderEngine")    ||
 	       !strcmp(comm, "surfaceflinger")  ||
+	       !strcmp(comm, "system_server")   ||
+	       !strcmp(comm, "ndroid.systemui") ||
+	       !strcmp(comm, "wmshell.main")    ||
+	       !strcmp(comm, "wmshell.anim")    ||
 	       !strcmp(comm, "android.display") ||
 	       !strcmp(comm, "android.anim")    ||
 	       !strcmp(comm, "android.ui")      ||
+	       !strcmp(comm, "InsetsAnimation") ||
+	       !strcmp(comm, "InteractionJank") ||
+	       !strcmp(comm, "ActivityManager") ||
+	       !strcmp(comm, "AsyncLayoutInfl") ||
+	       !strcmp(comm, "NotifInflation")  ||
+	       !strcmp(comm, "SysUiBg")         ||
+	       !strcmp(comm, "ImageWallpaper")  ||
+	       !strcmp(comm, "ScreenDecoratio") ||
 	       !strncmp(comm, "HwBinder", 8)    ||
 	       !strncmp(comm, "droid.launcher", 14) ||
 	       !strcmp(comm, "TASKBAR_UI_THRE") ||
