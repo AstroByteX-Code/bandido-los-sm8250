@@ -161,25 +161,7 @@ static unsigned long bandido_map_util_freq(unsigned long util,
 					unsigned long freq, unsigned long cap,
 					struct sugov_cpu *sg_cpu)
 {
-	unsigned long next_f;
-
-	/* Defensive check for NULL sg_cpu to prevent kernel panic */
-	if (unlikely(!sg_cpu))
-		return (freq + (freq >> 3)) * util / cap;
-
-	/* Optimized 1.125x multiplier (util + 12.5% headroom) for balanced performance */
-	next_f = (freq + (freq >> 3)) * util / cap;
-
-	/* RTG Boost: SOFTENED jump to ~56% of max frequency for UI fluidity.
-	 * Use as a floor to ensure fluidity without capping performance under load.
-	 */
-	if (sugov_rtg_boost_active(sg_cpu)) {
-		unsigned long boost_f = (freq + (freq >> 3)) >> 1;
-		if (boost_f > next_f)
-			next_f = boost_f;
-	}
-
-	return next_f;
+	return freq * util / cap;
 }
 
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,

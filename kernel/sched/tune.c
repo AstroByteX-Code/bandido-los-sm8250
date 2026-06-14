@@ -575,7 +575,7 @@ int schedtune_task_boost(struct task_struct *p)
 	 */
 	if (lcd_is_on && task_boost < 100) {
 		if (is_ui_thread(p))
-			task_boost = min(100, task_boost + 60); /* 60% boost for critical UI/Input threads */
+			task_boost = min(100, task_boost + 20); /* 20% boost for critical UI/Input threads */
 		else if (is_colocate && p->pid == p->tgid)
 			task_boost = min(100, task_boost + SCHEDTUNE_UI_THREAD_BOOST_BONUS);
 	}
