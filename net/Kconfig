@@ -278,7 +278,7 @@ config CGROUP_NET_CLASSID
 	  being used in cls_cgroup and for netfilter matching.
 
 config NET_RX_BUSY_POLL
-	bool
+	bool "Busy polling support in RX path"
 	default y
 
 config BQL
@@ -314,7 +314,7 @@ config BPF_STREAM_PARSER
 	  BPF_MAP_TYPE_SOCKMAP.
 
 config NET_FLOW_LIMIT
-	bool
+	bool "Network flow limit support"
 	depends on RPS
 	default y
 	help
