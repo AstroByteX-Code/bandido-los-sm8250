@@ -189,13 +189,17 @@ static int ss_monitor_set_alt(struct usb_function *f,
 static void ss_monitor_disable(struct usb_function *f)
 {
 	struct f_ss_monitor	*ss_monitor;
+#ifdef CONFIG_USB_NOTIFY_PROC_LOG
 	char aoa_check[12] = {0,};
+#endif
 
 	ss_monitor = func_to_ss_monitor(f);
+#ifdef CONFIG_USB_NOTIFY_PROC_LOG
 	if (ss_monitor && ss_monitor->accessory_string && ss_monitor->aoa_start_cmd) {
 		snprintf(aoa_check, sizeof(aoa_check), "AOA_ERR_%x", ss_monitor->accessory_string);
 		store_usblog_notify(NOTIFY_USBMODE_EXTRA, (void *)aoa_check, NULL);
 	}
+#endif
 	ss_monitor->accessory_string = 0;
 	ss_monitor->aoa_start_cmd = 0;
 	memset(guid_info, 0, sizeof(guid_info));
