@@ -2106,7 +2106,7 @@ static int cnss_qca6290_powerup(struct cnss_pci_data *pci_priv)
 	int ret = 0;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	unsigned int timeout;
-	int retry = 0, sw_ctrl_gpio = plat_priv->pinctrl_info.sw_ctrl_gpio;
+	int retry = 0;
 
 	if (plat_priv->ramdump_info_v2.dump_data_valid) {
 		cnss_pci_clear_dump_info(pci_priv);
@@ -2124,7 +2124,8 @@ retry:
 	ret = cnss_resume_pci_link(pci_priv);
 	if (ret) {
 		cnss_pr_dbg("Value of SW_CNTRL GPIO: %d\n",
-			    cnss_get_gpio_value(plat_priv, sw_ctrl_gpio));
+			    cnss_get_gpio_value(plat_priv,
+						plat_priv->pinctrl_info.sw_ctrl_gpio));
 		cnss_pr_err("Failed to resume PCI link, err = %d\n", ret);
 		if (test_bit(IGNORE_PCI_LINK_FAILURE,
 			     &plat_priv->ctrl_params.quirks)) {
@@ -2137,7 +2138,7 @@ retry:
 			cnss_pr_dbg("Retry to resume PCI link #%d\n", retry);
 			cnss_pr_dbg("Value of SW_CNTRL GPIO: %d\n",
 				    cnss_get_gpio_value(plat_priv,
-							sw_ctrl_gpio));
+							plat_priv->pinctrl_info.sw_ctrl_gpio));
 			msleep(POWER_ON_RETRY_DELAY_MS * retry);
 			goto retry;
 		}
@@ -2253,10 +2254,8 @@ out:
 
 static void cnss_qca6290_crash_shutdown(struct cnss_pci_data *pci_priv)
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
-
 	cnss_pr_dbg("Crash shutdown with driver_state 0x%lx\n",
-		    plat_priv->driver_state);
+		    pci_priv->plat_priv->driver_state);
 
 	cnss_pci_collect_dump_info(pci_priv, true);
 }
@@ -4661,7 +4660,7 @@ static int cnss_pci_update_fw_name(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
-static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
+static char * __maybe_unused cnss_mhi_notify_status_to_str(enum MHI_CB status)
 {
 	switch (status) {
 	case MHI_CB_IDLE:

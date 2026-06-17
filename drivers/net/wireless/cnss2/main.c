@@ -498,7 +498,7 @@ out:
 	return ret;
 }
 
-static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
+static char * __maybe_unused cnss_driver_event_to_str(enum cnss_driver_event_type type)
 {
 	switch (type) {
 	case CNSS_DRIVER_EVENT_SERVER_ARRIVE:
@@ -2081,8 +2081,11 @@ static int cnss_register_ramdump_v1(struct cnss_plat_data *plat_priv)
 
 	ret = cnss_init_dump_entry(plat_priv);
 	if (ret) {
-		cnss_pr_err("Failed to setup dump table, err = %d\n", ret);
-		goto free_ramdump;
+		/* Non-fatal: dump table may be unavailable (e.g. MEMORY_DUMP_V2
+		 * not enabled). Wi-Fi can still function without crash dumps.
+		 */
+		cnss_pr_warn("Failed to setup dump table, err = %d, continuing without crash dump support\n", ret);
+		ret = 0;
 	}
 
 	ramdump_info->ramdump_dev = cnss_create_ramdump_device(plat_priv);
@@ -2152,8 +2155,11 @@ static int cnss_register_ramdump_v2(struct cnss_plat_data *plat_priv)
 	ret = msm_dump_data_register_nominidump(MSM_DUMP_TABLE_APPS,
 						&dump_entry);
 	if (ret) {
-		cnss_pr_err("Failed to setup dump table, err = %d\n", ret);
-		goto free_ramdump;
+		/* Non-fatal: dump table may be unavailable (e.g. MEMORY_DUMP_V2
+		 * not enabled). Wi-Fi can still function without crash dumps.
+		 */
+		cnss_pr_warn("Failed to setup dump table, err = %d, continuing without crash dump support\n", ret);
+		ret = 0;
 	}
 
 	info_v2->ramdump_dev = cnss_create_ramdump_device(plat_priv);
