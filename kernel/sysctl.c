@@ -1688,8 +1688,10 @@ static int proc_swappiness_sysctl_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (write) {
-		/* Ignore user-space overrides to preserve optimal swappiness */
-		return 0;
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1)) {
+			/* Ignore ROM init / system init overrides to preserve optimal swappiness */
+			return 0;
+		}
 	}
 	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
