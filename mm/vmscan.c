@@ -4208,6 +4208,8 @@ static bool age_lruvec(struct lruvec *lruvec, struct scan_control *sc,
 	return true;
 }
 
+/* to protect the working set of the last N jiffies */
+#define LRU_GEN_MIN_TTL_MSECS	5000
 static unsigned long lru_gen_min_ttl __read_mostly;
 
 static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
@@ -5455,6 +5457,8 @@ static int __init init_lru_gen(void)
 	BUILD_BUG_ON(MIN_NR_GENS + 1 >= MAX_NR_GENS);
 	BUILD_BUG_ON(BIT(LRU_GEN_WIDTH) <= MAX_NR_GENS);
 	BUILD_BUG_ON(sizeof(MM_STAT_CODES) != NR_MM_STATS + 1);
+
+	WRITE_ONCE(lru_gen_min_ttl, msecs_to_jiffies(LRU_GEN_MIN_TTL_MSECS));
 
 	if (sysfs_create_group(mm_kobj, &lru_gen_attr_group))
 		pr_err("lru_gen: failed to create sysfs group\n");
