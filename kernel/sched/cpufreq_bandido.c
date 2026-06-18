@@ -22,6 +22,7 @@ extern bool lcd_is_on;
 
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;
+	unsigned int		rtg_boost_freq;
 };
 
 struct sugov_policy {
@@ -29,6 +30,8 @@ struct sugov_policy {
 
 	struct sugov_tunables	*tunables;
 	struct list_head	tunables_hook;
+	unsigned long		rtg_boost_util;
+	unsigned long		max;
 
 	raw_spinlock_t		update_lock;	/* For shared policies */
 	u64			last_freq_update_time;
@@ -149,6 +152,41 @@ static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 	sg_policy->next_freq = next_freq;
 }
 
+#define TARGET_LOAD 89
+#define DEFAULT_CPU0_RTG_BOOST_FREQ 1248000
+#define DEFAULT_CPU4_RTG_BOOST_FREQ 1478400
+#define DEFAULT_CPU7_RTG_BOOST_FREQ 1516800
+
+static unsigned long freq_to_util(struct sugov_policy *sg_policy,
+				  unsigned int freq)
+{
+	struct cpufreq_policy *policy = sg_policy->policy;
+	unsigned long max = sg_policy->max;
+
+	if (!freq)
+		return 0;
+
+	if (!max)
+		max = arch_scale_cpu_capacity(NULL, policy->cpu);
+
+	freq = min(freq, policy->cpuinfo.max_freq);
+	return mult_frac(max, freq, policy->cpuinfo.max_freq);
+}
+
+static inline unsigned long target_util(struct sugov_policy *sg_policy,
+					unsigned int freq)
+{
+	return mult_frac(freq_to_util(sg_policy, freq), TARGET_LOAD, 100);
+}
+
+static void sugov_update_rtg_boost_util(struct sugov_policy *sg_policy,
+					unsigned long max)
+{
+	sg_policy->max = max;
+	sg_policy->rtg_boost_util = target_util(sg_policy,
+						sg_policy->tunables->rtg_boost_freq);
+}
+
 static inline bool sugov_rtg_boost_active(struct sugov_cpu *sg_cpu)
 {
 	struct rq *rq = cpu_rq(sg_cpu->cpu);
@@ -157,11 +195,22 @@ static inline bool sugov_rtg_boost_active(struct sugov_cpu *sg_cpu)
 	       (rq->grp_time.curr_runnable_sum > 0 || rq->grp_time.prev_runnable_sum > 0);
 }
 
+static void sugov_walt_adjust(struct sugov_cpu *sg_cpu, unsigned long *util,
+			      unsigned long *max)
+{
+#ifdef CONFIG_SCHED_WALT
+	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
+
+	if (sugov_rtg_boost_active(sg_cpu))
+		*util = max(*util, sg_policy->rtg_boost_util);
+#endif
+}
+
 static unsigned long bandido_map_util_freq(unsigned long util,
 					unsigned long freq, unsigned long cap,
 					struct sugov_cpu *sg_cpu)
 {
-	return freq * util / cap;
+	return (freq + (freq >> 3)) * util / cap;
 }
 
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,
@@ -311,7 +360,9 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	sg_cpu->util = util = sugov_get_util(sg_cpu);
 	max = sg_cpu->max;
 
+	sugov_update_rtg_boost_util(sg_policy, max);
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
+	sugov_walt_adjust(sg_cpu, &util, &max);
 	next_f = get_next_freq(sg_policy, util, max);
 
 	/*
@@ -349,7 +400,11 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 
 		j_util = j_sg_cpu->util;
 		j_max = j_sg_cpu->max;
+		if (!j_max)
+			continue;
+
 		j_util = sugov_iowait_apply(j_sg_cpu, time, j_util, j_max);
+		sugov_walt_adjust(j_sg_cpu, &j_util, &j_max);
 
 		if (j_util * max > j_max * util) {
 			util = j_util;
@@ -373,6 +428,7 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
+	sugov_update_rtg_boost_util(sg_policy, sg_cpu->max);
 
 	ignore_dl_rate_limit(sg_cpu, sg_policy);
 
@@ -417,7 +473,7 @@ static inline struct sugov_tunables *to_sugov_tunables(struct gov_attr_set *attr
 
 static DEFINE_MUTEX(min_rate_lock);
 
-#define BANDIDO_DOWN_RATE_LIMIT_US	9000
+#define BANDIDO_DOWN_RATE_LIMIT_US	12000
 
 static void update_min_rate_limit_ns(struct sugov_policy *sg_policy)
 {
@@ -427,6 +483,42 @@ static void update_min_rate_limit_ns(struct sugov_policy *sg_policy)
 	mutex_unlock(&min_rate_lock);
 }
 
+static ssize_t rtg_boost_freq_show(struct gov_attr_set *attr_set, char *buf)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->rtg_boost_freq);
+}
+
+static ssize_t rtg_boost_freq_store(struct gov_attr_set *attr_set,
+				    const char *buf, size_t count)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+	struct sugov_policy *sg_policy;
+	unsigned long flags;
+	unsigned int val;
+
+	if (kstrtouint(buf, 10, &val))
+		return -EINVAL;
+
+	tunables->rtg_boost_freq = val;
+
+	list_for_each_entry(sg_policy, &attr_set->policy_list, tunables_hook) {
+		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
+		sugov_update_rtg_boost_util(sg_policy, sg_policy->max);
+		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
+	}
+
+	return count;
+}
+
+static struct governor_attr rtg_boost_freq = __ATTR_RW(rtg_boost_freq);
+
+static struct attribute *sugov_attributes[] = {
+	&rtg_boost_freq.attr,
+	NULL
+};
+
 static void sugov_tunables_free(struct kobject *kobj)
 {
 	struct gov_attr_set *attr_set = container_of(kobj, struct gov_attr_set, kobj);
@@ -435,6 +527,7 @@ static void sugov_tunables_free(struct kobject *kobj)
 }
 
 static struct kobj_type sugov_tunables_ktype = {
+	.default_attrs = sugov_attributes,
 	.sysfs_ops = &governor_sysfs_ops,
 	.release = &sugov_tunables_free,
 };
@@ -489,6 +582,8 @@ static void sugov_tunables_save(struct cpufreq_policy *policy,
 		for_each_cpu(cpu, policy->related_cpus)
 			per_cpu(cached_tunables, cpu) = cached;
 	}
+
+	cached->rtg_boost_freq = tunables->rtg_boost_freq;
 }
 
 static void sugov_clear_global_tunables(void)
@@ -499,6 +594,12 @@ static void sugov_clear_global_tunables(void)
 
 static void sugov_tunables_restore(struct cpufreq_policy *policy)
 {
+	struct sugov_policy *sg_policy = policy->governor_data;
+	struct sugov_tunables *tunables = sg_policy->tunables;
+	struct sugov_tunables *cached = per_cpu(cached_tunables, policy->cpu);
+
+	if (cached)
+		tunables->rtg_boost_freq = cached->rtg_boost_freq;
 }
 
 static struct cpufreq_governor bandido_gov;
@@ -540,10 +641,25 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto free_sg_policy;
 	}
 
+	switch (policy->cpu) {
+	default:
+	case 0:
+		tunables->rtg_boost_freq = DEFAULT_CPU0_RTG_BOOST_FREQ;
+		break;
+	case 4:
+		tunables->rtg_boost_freq = DEFAULT_CPU4_RTG_BOOST_FREQ;
+		break;
+	case 7:
+		tunables->rtg_boost_freq = DEFAULT_CPU7_RTG_BOOST_FREQ;
+		break;
+	}
+
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
 
 	sugov_tunables_restore(policy);
+	sugov_update_rtg_boost_util(sg_policy,
+				    arch_scale_cpu_capacity(NULL, policy->cpu));
 
 	ret = kobject_init_and_add(&tunables->attr_set.kobj, &sugov_tunables_ktype,
 				   get_governor_parent_kobj(policy), "%s",
@@ -606,6 +722,8 @@ static int sugov_start(struct cpufreq_policy *policy)
 	sg_policy->need_freq_update		= false;
 	sg_policy->cached_raw_freq		= 0;
 	sg_policy->prev_cached_raw_freq		= 0;
+	sugov_update_rtg_boost_util(sg_policy,
+				    arch_scale_cpu_capacity(NULL, policy->cpu));
 
 	for_each_cpu(cpu, policy->cpus) {
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
