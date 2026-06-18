@@ -201,7 +201,7 @@ static void sugov_walt_adjust(struct sugov_cpu *sg_cpu, unsigned long *util,
 #ifdef CONFIG_SCHED_WALT
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 
-	if (sugov_rtg_boost_active(sg_cpu))
+	if (sugov_rtg_boost_active(sg_cpu) || schedtune_cpu_boost_with(sg_cpu->cpu, NULL) > 0)
 		*util = max(*util, sg_policy->rtg_boost_util);
 #endif
 }
