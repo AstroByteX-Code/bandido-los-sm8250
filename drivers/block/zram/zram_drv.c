@@ -345,8 +345,6 @@ static ssize_t idle_store(struct device *dev,
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 static int zram_wbd(void *);
 static struct zram *g_zram;
-static bool is_app_launch;
-
 #define F2FS_IOCTL_MAGIC	0xf5
 #define F2FS_IOC_SET_PIN_FILE	_IOW(F2FS_IOCTL_MAGIC, 13, __u32)
 #define F2FS_SET_PIN_FILE	1
@@ -760,7 +758,7 @@ retry:
 	/* skip 0 bit to confuse zram.handle = 0 */
 	chunk_idx = find_next_zero_bit(zram->chunk_bitmap, max_idx, chunk_idx);
 	if (chunk_idx == max_idx)
-		return 0;
+	return 0;
 
 	spin_lock_irqsave(&zram->bitmap_lock, flags);
 	if (test_and_set_bit(chunk_idx, zram->chunk_bitmap)) {
@@ -1052,11 +1050,6 @@ out:
 	return -ENOMEM;
 }
 
-bool zram_is_app_launch(void)
-{
-	return is_app_launch;
-}
-
 #define ZRAM_WBD_INTERVAL 10 * HZ
 static bool zram_should_writeback(struct zram *zram,
 				unsigned long pages, bool trigger)
@@ -1072,10 +1065,6 @@ static bool zram_should_writeback(struct zram *zram,
 	int max_pages = CONFIG_ZRAM_LRU_WRITEBACK_LIMIT;
 	static unsigned long time_stamp;
 	bool ret = true;
-
-	/* avoid app launch time */
-	if (is_app_launch)
-		return false;
 
 	/* stop thread when writtenback enough */
 	if (pages > max_pages)
@@ -1123,21 +1112,6 @@ static void try_wakeup_zram_wbd(struct zram *zram)
 		wake_up(&zram->wbd_wait);
 	}
 }
-
-static int zram_app_launch_notifier(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	is_app_launch = action ? true : false;
-
-	if (!is_app_launch && g_zram)
-		try_wakeup_zram_wbd(g_zram);
-
-	return 0;
-}
-
-static struct notifier_block zram_app_launch_nb = {
-	.notifier_call = zram_app_launch_notifier,
-};
 
 static void mark_end_of_page(struct zwbs *zwbs)
 {
@@ -3618,10 +3592,7 @@ static int __init zram_init(void)
 		num_devices--;
 	}
 
-#ifdef CONFIG_ZRAM_LRU_WRITEBACK
-	am_app_launch_notifier_register(&zram_app_launch_nb);
-#endif
-	return 0;
+		return 0;
 
 out_error:
 	destroy_devices();
@@ -3631,9 +3602,6 @@ out_error:
 static void __exit zram_exit(void)
 {
 	destroy_devices();
-#ifdef CONFIG_ZRAM_LRU_WRITEBACK
-	am_app_launch_notifier_unregister(&zram_app_launch_nb);
-#endif
 }
 
 module_init(zram_init);

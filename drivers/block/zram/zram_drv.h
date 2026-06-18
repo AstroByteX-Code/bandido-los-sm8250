@@ -164,7 +164,6 @@ struct zwbs {
 
 void free_zwbs(struct zwbs **);
 int alloc_zwbs(struct zwbs **);
-bool zram_is_app_launch(void);
 int is_writeback_entry(swp_entry_t);
 void swap_add_to_list(struct list_head *, swp_entry_t);
 void swap_writeback_list(struct zwbs **, struct list_head *);
