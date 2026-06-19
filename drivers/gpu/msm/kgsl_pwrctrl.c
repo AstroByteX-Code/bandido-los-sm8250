@@ -895,10 +895,18 @@ static ssize_t min_pwrlevel_store(struct device *dev,
 				size_t count)
 {
 	struct kgsl_device *device = dev_get_drvdata(dev);
-	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+	int ret;
+	unsigned int level = 0;
 
-	/* Force min_pwrlevel to the absolute baseline minimum (305MHz) */
-	kgsl_pwrctrl_min_pwrlevel_set(device, pwr->num_pwrlevels - 1);
+	if (current->pid == 1 ||
+	    (current->real_parent && current->real_parent->pid == 1))
+		return count;
+
+	ret = kgsl_sysfs_store(buf, &level);
+	if (ret)
+		return ret;
+
+	kgsl_pwrctrl_min_pwrlevel_set(device, level);
 
 	return count;
 }
