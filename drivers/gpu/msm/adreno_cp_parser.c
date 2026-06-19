@@ -10,6 +10,9 @@
 #include "adreno_pm4types.h"
 #include "adreno_snapshot.h"
 
+const unsigned int a3xx_cp_addr_regs[ADRENO_CP_ADDR_MAX] = {0};
+const unsigned int a4xx_cp_addr_regs[ADRENO_CP_ADDR_MAX] = {0};
+
 #define MAX_IB_OBJS 1000
 #define NUM_SET_DRAW_GROUPS 32
 

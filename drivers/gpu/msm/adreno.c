@@ -161,16 +161,10 @@ unsigned int adreno_get_rptr(struct adreno_ringbuffer *rb)
 {
 	struct adreno_device *adreno_dev = ADRENO_RB_DEVICE(rb);
 	unsigned int rptr = 0;
+	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 
-	if (adreno_is_a3xx(adreno_dev))
-		adreno_readreg(adreno_dev, ADRENO_REG_CP_RB_RPTR,
-				&rptr);
-	else {
-		struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-
-		kgsl_sharedmem_readl(&device->scratch, &rptr,
-				SCRATCH_RPTR_OFFSET(rb->id));
-	}
+	kgsl_sharedmem_readl(&device->scratch, &rptr,
+			SCRATCH_RPTR_OFFSET(rb->id));
 
 	return rptr;
 }
@@ -1734,9 +1728,8 @@ static int adreno_init(struct kgsl_device *device)
 	struct adreno_gpudev *gpudev = ADRENO_GPU_DEVICE(adreno_dev);
 	int ret;
 
-	if (!adreno_is_a3xx(adreno_dev))
-		kgsl_sharedmem_set(device, &device->scratch, 0, 0,
-				device->scratch.size);
+	kgsl_sharedmem_set(device, &device->scratch, 0, 0,
+			device->scratch.size);
 
 	ret = kgsl_pwrctrl_change_state(device, KGSL_STATE_INIT);
 	if (ret)
@@ -1793,7 +1786,7 @@ static int adreno_init(struct kgsl_device *device)
 	 * those targets that have the always on timer
 	 */
 
-	if (!adreno_is_a3xx(adreno_dev)) {
+	{
 		unsigned int priv = 0;
 		int r;
 
@@ -1813,7 +1806,6 @@ static int adreno_init(struct kgsl_device *device)
 				&adreno_dev->profile_buffer, 0, 0,
 				PAGE_SIZE);
 		}
-
 	}
 
 	return 0;
@@ -3982,7 +3974,6 @@ static const struct kgsl_functable adreno_functable = {
 	.compat_ioctl = adreno_compat_ioctl,
 	.power_stats = adreno_power_stats,
 	.gpuid = adreno_gpuid,
-	.snapshot = adreno_snapshot,
 	.irq_handler = adreno_irq_handler,
 	.drain = adreno_drain,
 	.device_private_create = adreno_device_private_create,

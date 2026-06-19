@@ -1498,6 +1498,7 @@ static const struct adreno_a6xx_core adreno_gpu_core_a702 = {
 };
 
 static const struct adreno_gpu_core *adreno_gpulist[] = {
+#if 0
 	&adreno_gpu_core_a306.base,
 	&adreno_gpu_core_a306a.base,
 	&adreno_gpu_core_a304.base,
@@ -1516,6 +1517,7 @@ static const struct adreno_gpu_core *adreno_gpulist[] = {
 	&adreno_gpu_core_a512.base,
 	&adreno_gpu_core_a508.base,
 	&adreno_gpu_core_a504.base,
+#endif
 	&adreno_gpu_core_a630v1,	/* Deprecated */
 	&adreno_gpu_core_a630v2.base,
 	&adreno_gpu_core_a615.base,
