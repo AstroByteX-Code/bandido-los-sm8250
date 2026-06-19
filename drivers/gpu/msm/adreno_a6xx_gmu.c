@@ -1770,7 +1770,6 @@ struct gmu_dev_ops adreno_a6xx_gmudev = {
 	.wait_for_gmu_idle = a6xx_gmu_wait_for_idle,
 	.ifpc_store = a6xx_gmu_ifpc_store,
 	.ifpc_show = a6xx_gmu_ifpc_show,
-	.snapshot = a6xx_gmu_snapshot,
 	.cooperative_reset = a6xx_gmu_cooperative_reset,
 	.wait_for_active_transition = a6xx_gmu_wait_for_active_transition,
 	.read_ao_counter = a6xx_gmu_read_ao_counter,

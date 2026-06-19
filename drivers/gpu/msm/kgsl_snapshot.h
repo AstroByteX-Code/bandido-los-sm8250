@@ -282,7 +282,7 @@ struct kgsl_snapshot_gpu_object_v2 {
 struct kgsl_device;
 struct kgsl_process_private;
 
-void kgsl_snapshot_push_object(struct kgsl_device *device,
+static inline void kgsl_snapshot_push_object(struct kgsl_device *device,
 		struct kgsl_process_private *process,
-		uint64_t gpuaddr, uint64_t dwords);
+		uint64_t gpuaddr, uint64_t dwords) {}
 #endif

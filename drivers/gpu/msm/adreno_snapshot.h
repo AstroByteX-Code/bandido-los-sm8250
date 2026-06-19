@@ -38,13 +38,13 @@ size_t adreno_snapshot_cp_meq(struct kgsl_device *device, u8 *buf,
 size_t adreno_snapshot_vpc_memory(struct kgsl_device *device, u8 *buf,
 		size_t remain, void *priv);
 
-void adreno_snapshot_registers(struct kgsl_device *device,
+static inline void adreno_snapshot_registers(struct kgsl_device *device,
 		struct kgsl_snapshot *snapshot,
-		const unsigned int *regs, unsigned int count);
+		const unsigned int *regs, unsigned int count) {}
 
-void adreno_snapshot_vbif_registers(struct kgsl_device *device,
+static inline void adreno_snapshot_vbif_registers(struct kgsl_device *device,
 		struct kgsl_snapshot *snapshot,
 		const struct adreno_vbif_snapshot_registers *list,
-		unsigned int count);
+		unsigned int count) {}
 
 #endif /*__ADRENO_SNAPSHOT_H */

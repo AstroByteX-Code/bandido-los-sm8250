@@ -685,10 +685,10 @@ void kgsl_device_platform_remove(struct kgsl_device *device);
 
 const char *kgsl_pwrstate_to_str(unsigned int state);
 
-int kgsl_device_snapshot_init(struct kgsl_device *device);
-void kgsl_device_snapshot(struct kgsl_device *device,
-			struct kgsl_context *context, bool gmu_fault);
-void kgsl_device_snapshot_close(struct kgsl_device *device);
+static inline int kgsl_device_snapshot_init(struct kgsl_device *device) { return 0; }
+static inline void kgsl_device_snapshot(struct kgsl_device *device,
+			struct kgsl_context *context, bool gmu_fault) {}
+static inline void kgsl_device_snapshot_close(struct kgsl_device *device) {}
 
 void kgsl_events_init(void);
 void kgsl_events_exit(void);
@@ -943,10 +943,10 @@ struct adreno_ib_object_list;
 int kgsl_snapshot_add_ib_obj_list(struct kgsl_snapshot *snapshot,
 	struct adreno_ib_object_list *ib_obj_list);
 
-void kgsl_snapshot_add_section(struct kgsl_device *device, u16 id,
+static inline void kgsl_snapshot_add_section(struct kgsl_device *device, u16 id,
 	struct kgsl_snapshot *snapshot,
 	size_t (*func)(struct kgsl_device *, u8 *, size_t, void *),
-	void *priv);
+	void *priv) {}
 
 /**
  * kgsl_of_property_read_ddrtype - Get property from devicetree based on
