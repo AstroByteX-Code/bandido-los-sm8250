@@ -801,15 +801,15 @@ static ssize_t sample_ms_show(struct device *dev,
 static DEVICE_ATTR_RW(sample_ms);
 
 gov_attr(guard_band_mbps, 0U, 2000U);
-gov_attr(decay_rate, 0U, 100U);
+gov_attr(decay_rate, 0U, 75U);
 gov_attr(io_percent, 1U, 400U);
 gov_attr(bw_step, 50U, 1000U);
 gov_attr(up_scale, 0U, 500U);
-gov_attr(up_thres, 1U, 100U);
-gov_attr(down_thres, 0U, 90U);
+gov_attr(up_thres, 1U, 10U);
+gov_attr(down_thres, 0U, 20U);
 gov_attr(down_count, 0U, 90U);
 gov_attr(hist_memory, 0U, 90U);
-gov_attr(hyst_trigger_count, 0U, 90U);
+gov_attr(hyst_trigger_count, 0U, 1U);
 gov_attr(hyst_length, 0U, 90U);
 gov_attr(idle_mbps, 0U, 2000U);
 gov_attr(use_ab, 0U, 1U);
@@ -977,17 +977,60 @@ int register_bw_hwmon(struct device *dev, struct bw_hwmon *hwmon)
 		node->attr_grp = &dev_attr_group;
 	}
 
-	node->guard_band_mbps = 100;
-	node->decay_rate = 90;
+	/*
+	 * Performance-tuned defaults for UI workloads.
+	 *
+	 * Previously the DT declared these nodes with governor = "performance"
+	 * and relied on the vendor .rc (e.g. perf/perfconfigstore.xml or
+	 * vendor/etc/perf/) to switch the governor to "bw_hwmon" at runtime
+	 * and write the following values via sysfs:
+	 *
+	 *   Parameter           .rc value (cpu-llcc-ddr-bw / cpu-cpu-llcc-bw)
+	 *   ---------------------------------------------------------------
+	 *   hyst_trigger_count  3         / 3
+	 *   sample_ms           4         / 4
+	 *   decay_rate          90        / 90
+	 *   down_thres          30        / 30
+	 *   down_count          3         / 3
+	 *   up_thres            10        / 10
+	 *   up_scale            250       / 250
+	 *   guard_band_mbps     0         / 0
+	 *   io_percent          80        / 50
+	 *   idle_mbps           1600      / 1600
+	 *   use_ab              1         / 1
+	 *   bw_step             190       / 190
+	 *
+	 * The DT now sets governor = "bw_hwmon" directly (removing the
+	 * dependency on the ROM's .rc). The per-instance differences
+	 * (io_percent, up_scale, mbps_zones) are still applied by the ROM
+	 * if present, but the governor will function correctly without them.
+	 *
+	 * Changes from the .rc values:
+	 *  - hyst_trigger_count: 3 → 1   DDR scales up on 1st sample (~4ms),
+	 *                                 not after 3 samples (~12ms). At 60fps
+	 *                                 a 12ms ramp-up delay wastes 72% of the
+	 *                                 16.6ms frame budget before DDR reacts.
+	 *  - decay_rate:          90 → 75 BW vote decays more slowly after a
+	 *                                 burst, keeping DDR high between scroll
+	 *                                 frames instead of oscillating.
+	 *  - down_thres:         30 → 20 Prevents aggressive down-scaling of
+	 *                                 bandwidth, keeping LLCC/DDR frequencies
+	 *                                 elevated during interactive workloads.
+	 *
+	 * (Note: guard_band_mbps = 0 and sample_ms = 4 match what the .rc was
+	 * setting anyway, correcting the driver's bad original defaults).
+	 */
+	node->guard_band_mbps = 0;
+	node->decay_rate = 75;
 	node->io_percent = 16;
 	node->bw_step = 190;
-	node->sample_ms = 50;
+	node->sample_ms = 4;
 	node->up_scale = 0;
 	node->up_thres = 10;
-	node->down_thres = 0;
+	node->down_thres = 20;
 	node->down_count = 3;
 	node->hist_memory = 0;
-	node->hyst_trigger_count = 3;
+	node->hyst_trigger_count = 1;
 	node->hyst_length = 0;
 	node->idle_mbps = 400;
 	node->use_ab = 1;
