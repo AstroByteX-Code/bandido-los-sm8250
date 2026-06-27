@@ -28,6 +28,7 @@ enum ito_error_type {
 
 #define FTS_COMP_DATA_HEADER_SIZE     16
 #include <linux/input/sec_tsp_log.h>
+#include <linux/rom_notifier.h>
 
 enum fts_nvm_data_type {		/* Write Command */
 	FTS_NVM_OFFSET_FAC_RESULT = 1,
@@ -7447,7 +7448,7 @@ static void ear_detect_enable(void *device_data)
 		snprintf(buff, sizeof(buff), "NG");
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 	} else {
-		if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER)
+		if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER || !is_aosp)
 			info->ed_enable = sec->cmd_param[0];
 		else
 			info->ed_enable = sec->cmd_param[0] != 0 ? 3 : 0;

@@ -57,6 +57,8 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
 
 #include <linux/dev_ril_bridge.h>
 
+#include <linux/rom_notifier.h>
+
 #include <linux/regulator/consumer.h>
 #if 0
 #if defined(CONFIG_SEC_ABC)
@@ -1626,7 +1628,7 @@ struct samsung_display_driver_data {
 	/* SAMSUNG_FINGERPRINT */
 	bool support_optical_fingerprint;
 	bool finger_mask_updated;
-	bool finger_mask_enable;
+	u32 finger_mask_enable;
 	int finger_mask;
 	int panel_hbm_entry_delay; //hbm entry delay/ unit = vsync
 	int panel_hbm_entry_after_te; /* delay after TE noticed */
