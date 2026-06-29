@@ -75,6 +75,29 @@
 
 int suid_dumpable = 0;
 
+struct task_struct *hqm_tsk;
+EXPORT_SYMBOL(hqm_tsk);
+
+bool task_is_hqm(struct task_struct *p)
+{
+	struct task_struct *tsk;
+	bool ret;
+
+	rcu_read_lock();
+	tsk = READ_ONCE(hqm_tsk);
+	ret = tsk && same_thread_group(p, tsk);
+	rcu_read_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL(task_is_hqm);
+
+void dead_special_task(void)
+{
+	if (unlikely(current == hqm_tsk))
+		WRITE_ONCE(hqm_tsk, NULL);
+}
+
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
@@ -1746,6 +1769,11 @@ static int __do_execve_file(int fd, struct filename *filename,
 
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
+
+	if (filename && filename->name && strstr(filename->name, "vendor.samsung.hardware.hqm@1.0-service")) {
+		pr_info("Tracking HQM service task via execve: %s\n", filename->name);
+		WRITE_ONCE(hqm_tsk, current);
+	}
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from

@@ -24,8 +24,12 @@ Copyright (C) 2015, Samsung Electronics. All rights reserved.
 
 #include "ss_dsi_panel_sysfs.h"
 #include <linux/sec_param.h>
+#include <linux/sched.h>
+#include <linux/jiffies.h>
+#include <linux/delay.h>
 
 extern struct kset *devices_kset;
+extern bool task_is_hqm(struct task_struct *p);
 
 #define MAX_FILE_NAME 128
 #define TUNING_FILE_PATH "/sdcard/"
@@ -3667,6 +3671,12 @@ static ssize_t ss_dpui_show(struct device *dev,
 {
 	int ret;
 
+	if (task_is_hqm(current)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10000));
+		return snprintf(buf, PAGE_SIZE, "{}");
+	}
+
 	update_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
 	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_INFO, DPUI_TYPE_PANEL);
 	if (ret < 0) {
@@ -3696,6 +3706,12 @@ static ssize_t ss_dpui_dbg_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int ret;
+
+	if (task_is_hqm(current)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10000));
+		return snprintf(buf, PAGE_SIZE, "{}");
+	}
 
 	update_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
 	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_PANEL);
@@ -3727,6 +3743,12 @@ static ssize_t ss_dpci_show(struct device *dev,
 {
 	int ret;
 
+	if (task_is_hqm(current)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10000));
+		return snprintf(buf, PAGE_SIZE, "{}");
+	}
+
 	update_dpui_log(DPUI_LOG_LEVEL_INFO, DPUI_TYPE_CTRL);
 	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_INFO, DPUI_TYPE_CTRL);
 	if (ret < 0) {
@@ -3756,6 +3778,12 @@ static ssize_t ss_dpci_dbg_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int ret;
+
+	if (task_is_hqm(current)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10000));
+		return snprintf(buf, PAGE_SIZE, "{}");
+	}
 
 	update_dpui_log(DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_CTRL);
 	ret = get_dpui_log(buf, DPUI_LOG_LEVEL_DEBUG, DPUI_TYPE_CTRL);
