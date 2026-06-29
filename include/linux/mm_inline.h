@@ -244,10 +244,11 @@ static inline bool lru_gen_del_page(struct lruvec *lruvec, struct page *page, bo
 
 		gen = ((new_flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
 
+		new_flags &= ~LRU_GEN_MASK;
+		if (!(new_flags & BIT(PG_referenced)))
+			new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
+
 		if (reclaiming) {
-			new_flags &= ~LRU_GEN_MASK;
-			if (!(new_flags & BIT(PG_referenced)))
-				new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
 			new_flags &= ~(BIT(PG_referenced) | BIT(PG_reclaim));
 		} else if (lru_gen_is_active(lruvec, gen)) {
 			new_flags |= BIT(PG_active);
