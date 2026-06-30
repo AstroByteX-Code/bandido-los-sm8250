@@ -78,6 +78,11 @@ int suid_dumpable = 0;
 struct task_struct *hqm_tsk;
 EXPORT_SYMBOL(hqm_tsk);
 
+struct task_struct *hyper_tsk;
+EXPORT_SYMBOL(hyper_tsk);
+
+
+
 bool task_is_hqm(struct task_struct *p)
 {
 	struct task_struct *tsk;
@@ -92,10 +97,26 @@ bool task_is_hqm(struct task_struct *p)
 }
 EXPORT_SYMBOL(task_is_hqm);
 
+bool task_is_hyper(struct task_struct *p)
+{
+	struct task_struct *tsk;
+	bool ret;
+
+	rcu_read_lock();
+	tsk = READ_ONCE(hyper_tsk);
+	ret = tsk && same_thread_group(p, tsk);
+	rcu_read_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL(task_is_hyper);
+
 void dead_special_task(void)
 {
 	if (unlikely(current == hqm_tsk))
 		WRITE_ONCE(hqm_tsk, NULL);
+	if (unlikely(current == hyper_tsk))
+		WRITE_ONCE(hyper_tsk, NULL);
 }
 
 static LIST_HEAD(formats);
@@ -1771,8 +1792,13 @@ static int __do_execve_file(int fd, struct filename *filename,
 		return PTR_ERR(filename);
 
 	if (filename && filename->name && strstr(filename->name, "vendor.samsung.hardware.hqm@1.0-service")) {
-		pr_info("Tracking HQM service task via execve: %s\n", filename->name);
+		pr_err("Tracking HQM service task via execve: %s\n", filename->name);
 		WRITE_ONCE(hqm_tsk, current);
+	}
+
+	if (filename && filename->name && strstr(filename->name, "vendor.samsung.hardware.hyper-service")) {
+		pr_err("Tracking hyper-service task via execve: %s\n", filename->name);
+		WRITE_ONCE(hyper_tsk, current);
 	}
 
 	/*
@@ -1900,6 +1926,9 @@ static int __do_execve_file(int fd, struct filename *filename,
 	task_numa_free(current, false);
 	free_bprm(bprm);
 	kfree(pathbuf);
+
+
+
 	if (filename)
 		putname(filename);
 	if (displaced)

@@ -129,6 +129,9 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	return min_t(ssize_t, count, len);
 }
 
+extern bool task_is_hqm(struct task_struct *p);
+extern bool task_is_hyper(struct task_struct *p);
+
 /* kernfs write callback for regular sysfs files */
 static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 			      size_t count, loff_t pos)
@@ -138,6 +141,9 @@ static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 
 	if (!count)
 		return 0;
+
+	if (task_is_hqm(current) || task_is_hyper(current))
+		return count;
 
 	return ops->store(kobj, of->kn->priv, buf, count);
 }
