@@ -179,7 +179,7 @@ static inline void sec_debug_save_core_reg(struct sec_debug_core_t *core_reg)
 
 		:				/* output */
 		: "r"(core_reg)			/* input */
-		: "%x0", "%x1"			/* clobbered registers */
+		: "x0", "x1", "x9", "x10", "x11", "x15", "memory"			/* clobbered registers */
 	);
 
 	core_reg->sp_el0 = READ_SPECIAL_REG(sp_el0);
