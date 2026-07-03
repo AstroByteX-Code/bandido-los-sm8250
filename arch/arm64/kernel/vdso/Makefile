@@ -32,6 +32,11 @@ ccflags-y += -DDISABLE_BRANCH_PROFILING
 
 CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os $(CC_FLAGS_SCS)
 KBUILD_CFLAGS			+= $(DISABLE_LTO)
+
+# Filter out aggressive optimizations and LLVM/Clang parameters that break VDSO
+KBUILD_CFLAGS			:= $(filter-out -ffast-math -falign-loops=%, $(KBUILD_CFLAGS))
+KBUILD_CFLAGS			:= $(shell echo '$(KBUILD_CFLAGS)' | sed -E 's/-mllvm [^ ]+//g')
+
 KASAN_SANITIZE			:= n
 UBSAN_SANITIZE			:= n
 OBJECT_FILES_NON_STANDARD	:= y
