@@ -89,7 +89,7 @@ quiet_cmd_vdsoas = VDSOA   $@
       cmd_vdsoas = $(CC) $(a_flags) -c -o $@ $<
 
 quiet_cmd_vdsold_and_vdso_check = LD      $@
-      cmd_vdsold_and_vdso_check = $(cmd_ld); $(cmd_vdso_check)
+      cmd_vdsold_and_vdso_check = $(cmd_ld); $(cmd_vdso_check); $(NM) $@ | $(gen-vdsosym) | LC_ALL=C sort > include/generated/vdso-offsets.h
 
 # Install commands for the unstripped file
 quiet_cmd_vdso_install = INSTALL $@
