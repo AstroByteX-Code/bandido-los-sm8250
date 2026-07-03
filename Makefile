@@ -791,20 +791,20 @@ endif
 
 LLVMPARAMS := \
   -mllvm -inlinecold-threshold=12 \
-  -mllvm -inline-threshold=90 \
-  -mllvm -inlinehint-threshold=350 \
+  -mllvm -inline-threshold=200 \
+  -mllvm -inlinehint-threshold=300 \
   -mllvm -inline-cold-callsite-threshold=12 \
-  -mllvm -locally-hot-callsite-threshold=100 \
+  -mllvm -locally-hot-callsite-threshold=200 \
   -mllvm -inline-enable-cost-benefit-analysis=true
 
 LLVMPARAMS_LINK := \
   -mllvm -enable-merge-functions=true
 
 COPTS := -Os -ffast-math -falign-functions=1 -falign-loops=1 \
-	$(POLLY) $(LLVMPARAMS)
+	$(LLVMPARAMS)
 
 KBUILD_CFLAGS += $(COPTS)
-LDFINAL += $(POLLY) $(LLVMPARAMS) $(LLVMPARAMS_LINK)
+LDFINAL += $(LLVMPARAMS) $(LLVMPARAMS_LINK)
 export LDFINAL
 
 BOPTS := -O2 -falign-functions=8 -falign-loops=8
@@ -1003,11 +1003,8 @@ endif
 ifdef CONFIG_THINLTO
 lto-clang-flags	:= -flto=thin
 KBUILD_LDFLAGS	+= --thinlto-cache-dir=.thinlto-cache
-ifdef LTO_JOBS
-KBUILD_LDFLAGS	+= --thinlto-jobs=$(LTO_JOBS)
-endif
 # Limit inlining across translation units to reduce binary size
-LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=5
+LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=50
 else
 lto-clang-flags	:= -flto
 endif
