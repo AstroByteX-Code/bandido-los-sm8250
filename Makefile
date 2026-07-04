@@ -791,7 +791,7 @@ endif
 
 LLVMPARAMS := \
   -mllvm -inlinecold-threshold=12 \
-  -mllvm -inline-threshold=300 \
+  -mllvm -inline-threshold=100 \
   -mllvm -inlinehint-threshold=450 \
   -mllvm -inline-cold-callsite-threshold=12 \
   -mllvm -locally-hot-callsite-threshold=300 \
