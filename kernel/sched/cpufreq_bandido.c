@@ -210,7 +210,7 @@ static unsigned long bandido_map_util_freq(unsigned long util,
 					unsigned long freq, unsigned long cap,
 					struct sugov_cpu *sg_cpu)
 {
-	return (freq + (freq >> 3)) * util / cap;
+	return (freq + (freq >> 2)) * util / cap;
 }
 
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,
