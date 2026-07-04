@@ -18,7 +18,7 @@
 CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
 CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ -DGDTH_STATISTICS
 
-subdir-ccflags-y := -Wformat
+subdir-ccflags-y := -Wformat $(BOPTS2)
 
 obj-$(CONFIG_PCMCIA)		+= pcmcia/
 
