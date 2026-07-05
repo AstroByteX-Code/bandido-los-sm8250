@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-subdir-ccflags-y += $(BOPTS2)
+subdir-ccflags-y += $(BOPTS)
 #
 # Makefile for the Linux filesystems.
 #
