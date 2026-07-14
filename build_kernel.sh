@@ -11,7 +11,7 @@ export LLVM=1 LLVM_IAS=1
 
 #setting toolchain path
 ROOT_DIR="/home/me/kernelupgrade"
-TC_DIR="$ROOT_DIR/toolchains/clang-22"
+TC_DIR="$ROOT_DIR/toolchains/llvm-22.1.8-x86_64"
 export PATH="$TC_DIR/bin:$PATH"
 
 ##########################################################
@@ -21,8 +21,7 @@ mkdir -p out
 export ARCH=arm64
 CLANG_TRIPLE=aarch64-linux-gnu
 
-CPU=$(($(nproc) - 3))
-LTO_JOBS=$(($(nproc) / 2)) # Use half for LTO to keep system responsive
+CPU=$(($(nproc) - 1))
 DATE_START=$(date +"%s")
 IMAGE="out/arch/arm64/boot/Image.gz-dtb"
 
@@ -30,18 +29,17 @@ if [[ $1 != "flash" ]]; then
 	#Remove a previous kernel image
 	rm out/arch/arm64/boot/Image* &>/dev/null
 
-	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE CLANG_TRIPLE=$CLANG_TRIPLE bandido_defconfig
 
 	#Remove "=y" or "is not set"
 	scripts/configcleaner "CONFIG_LTO_CLANG
-CONFIG_THINLTO
-CONFIG_LTO_GCC
-CONFIG_PGO_CLANG
-CONFIG_PGOUSE_CLANG
-"
+		CONFIG_THINLTO
+		CONFIG_LTO_GCC
+		CONFIG_PGO_CLANG
+		CONFIG_PGOUSE_CLANG"
 
 	if [[ -v LLVM ]]; then
-		VERSION=$(${TC_DIR}/bin/clang -dumpversion)
+		VERSION=$(clang -dumpversion)
 		COMPILER="clang$VERSION"
 		echo -e "# CONFIG_LTO_GCC is not set\n" >>out/.config
 		case $1 in
@@ -89,11 +87,11 @@ CONFIG_PGOUSE_CLANG
 		esac
 	fi
 
-	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
 		CLANG_TRIPLE=$CLANG_TRIPLE oldconfig
 
-	nice -n 15 make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
-		CLANG_TRIPLE=$CLANG_TRIPLE LTO_JOBS=$LTO_JOBS Image.gz-dtb 2>&1 | tee compile-bandido.log
+	make -j$CPU -C $(pwd) O=$(pwd)/out ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+		CLANG_TRIPLE=$CLANG_TRIPLE Image.gz-dtb 2>&1 | tee compile-bandido.log
 else
 	COMPILER="prebuilt"
 fi
@@ -133,35 +131,50 @@ if [[ -f "$IMAGE" ]]; then
 	#this will wait for the device to try to flash automatically
 	while true; do
 		adb start-server >/dev/null 2>&1
-		STATE=$(adb get-state 2>&1)
+		STATE=$(adb get-state 2>/dev/null)
 
 		if [[ $STATE == "device" ]]; then
-			MODE=$(adb shell getprop sys.boot_completed 2>/dev/null)
-
-			if [[ $MODE -eq 1 ]]; then
-				echo -e "\a"
-				echo "Device is connected but not in recovery mode."
-#				read -p "Press Enter to reboot to recovery mode..."
-				adb reboot recovery
-				echo "Rebooting to recovery mode..."
-				REBOOT=1
-			fi
+			echo "Device is active normally. Rebooting to recovery..."
+			adb reboot recovery
+			sleep 40
 		elif [[ $STATE == "recovery" ]]; then
 			echo "Device is in recovery mode."
 			break
 		else
-			echo "No devices or emulators found. Retrying in 5 seconds..."
-			if [[ $REBOOT -ne 1 ]]; then
-				echo -e "\a"
-			fi
+			echo "No device found in device or recovery state. Retrying in 5 seconds..."
 			sleep 5
 		fi
 	done
 
-	adb push $KERNELZIP /sdcard/
+	# Wait for TWRP to be fully ready before pushing/installing
+	echo "Waiting for TWRP to be fully ready..."
+	while ! adb shell "twrp help" 2>/dev/null | grep -q "TWRP"; do
+		sleep 2
+	done
+	sleep 10
 
-	#is this right? hum
-	adb shell "twrp install /sdcard/$KERNELZIP"
+
+	echo "Pushing kernel zip to device..."
+	PUSH_SUCCESS=0
+	for i in {1..5}; do
+		if adb push "$KERNELZIP" /tmp/; then
+			PUSH_SUCCESS=1
+			break
+		fi
+		echo "Push failed, retrying in 3 seconds ($i/5)..."
+		sleep 3
+	done
+	if [[ $PUSH_SUCCESS -ne 1 ]]; then
+		echo "ERROR: Failed to push kernel zip to device!"
+		exit 1
+	fi
+	adb shell sync
+
+	echo "Installing kernel via TWRP..."
+	if ! adb shell "twrp install /tmp/$KERNELZIP"; then
+		echo "ERROR: Failed to install kernel via TWRP!"
+		exit 1
+	fi
 	echo -e "\a"
 else
 	echo -e "\nERROR. Something broke along the way since $IMAGE is not there\n"
