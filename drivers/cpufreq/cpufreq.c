@@ -749,20 +749,29 @@ static ssize_t store_scaling_min_freq
 	int ret, temp;
 	struct cpufreq_policy new_policy;
 
+	ret = sscanf(buf, "%u", &temp);
+	if (ret != 1)
+		return -EINVAL;
+
+	pr_info("cpufreq: %s (PID %d, parent PID %d) attempts write scaling_min_freq=%u for CPU%d\n",
+		current->comm, current->pid, (current->parent ? current->parent->pid : -1), temp, policy->cpu);
+
 	/* Avoid changes when the pid or ppid is 1 to block PowerHAL / init */
-	if (current->pid == 1 || (current->parent && current->parent->pid == 1))
+	if (current->pid == 1 || (current->parent && current->parent->pid == 1)) {
+		pr_info("cpufreq: blocked write scaling_min_freq=%u from %s (PID %d) due to PID 1 check\n",
+			temp, current->comm, current->pid);
 		return count;
+	}
 
 	memcpy(&new_policy, policy, sizeof(*policy));
 	new_policy.min = policy->user_policy.min;
 	new_policy.max = policy->user_policy.max;
+	new_policy.min = temp;
 
-	ret = sscanf(buf, "%u", &new_policy.min);
-	if (ret != 1)
-		return -EINVAL;
-
-	temp = new_policy.min;
 	ret = cpufreq_set_policy(policy, &new_policy);
+	pr_info("cpufreq: %s (PID %d) set scaling_min_freq=%u for CPU%d, ret=%d\n",
+		current->comm, current->pid, temp, policy->cpu, ret);
+
 	if (!ret)
 		policy->user_policy.min = temp;
 
@@ -2386,9 +2395,16 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
  */
 void cpufreq_update_policy(unsigned int cpu)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy;
 	struct cpufreq_policy new_policy;
 
+	if (!strcmp(current->comm, "perf@2.2-servic")) {
+		pr_info("cpufreq: blocked cpufreq_update_policy call from %s (PID %d) for CPU%d\n",
+			current->comm, current->pid, cpu);
+		return;
+	}
+
+	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return;
 
