@@ -136,7 +136,7 @@ if [[ -f "$IMAGE" ]]; then
 		if [[ $STATE == "device" ]]; then
 			echo "Device is active normally. Rebooting to recovery..."
 			adb reboot recovery
-			sleep 40
+			sleep 45
 		elif [[ $STATE == "recovery" ]]; then
 			echo "Device is in recovery mode."
 			break
@@ -151,8 +151,6 @@ if [[ -f "$IMAGE" ]]; then
 	while ! adb shell "twrp help" 2>/dev/null | grep -q "TWRP"; do
 		sleep 2
 	done
-	sleep 10
-
 
 	echo "Pushing kernel zip to device..."
 	PUSH_SUCCESS=0
@@ -168,10 +166,17 @@ if [[ -f "$IMAGE" ]]; then
 		echo "ERROR: Failed to push kernel zip to device!"
 		exit 1
 	fi
-	adb shell sync
+
+	# Wait for TWRP daemon to be fully ready and responsive
+	echo "Waiting for TWRP daemon to be responsive..."
+	while ! adb shell "twrp print 1" 2>/dev/null | grep -q "Done processing"; do
+		sleep 1
+	done
 
 	echo "Installing kernel via TWRP..."
-	if ! adb shell "twrp install /tmp/$KERNELZIP"; then
+	INSTALL_OUTPUT=$(adb shell "twrp install /tmp/$KERNELZIP" 2>&1)
+	echo "$INSTALL_OUTPUT"
+	if echo "$INSTALL_OUTPUT" | grep -qE "Error installing|Unable to locate|Failed"; then
 		echo "ERROR: Failed to install kernel via TWRP!"
 		exit 1
 	fi
