@@ -1696,6 +1696,76 @@ static int proc_swappiness_sysctl_handler(struct ctl_table *table, int write,
 	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
 
+static int proc_dirty_background_ratio_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirty_background_ratio_handler(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirty_background_bytes_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirty_background_bytes_handler(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirty_ratio_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirty_ratio_handler(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirty_bytes_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirty_bytes_handler(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirty_writeback_centisecs_handler(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirty_expire_centisecs_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+}
+
+static int proc_dirtytime_interval_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (write) {
+		if (current->pid == 1 || (current->real_parent && current->real_parent->pid == 1))
+			return 0;
+	}
+	return dirtytime_interval_handler(table, write, buffer, lenp, ppos);
+}
+
 static struct ctl_table vm_table[] = {
 	{
 		.procname	= "overcommit_memory",
@@ -1755,7 +1825,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirty_background_ratio,
 		.maxlen		= sizeof(dirty_background_ratio),
 		.mode		= 0644,
-		.proc_handler	= dirty_background_ratio_handler,
+		.proc_handler	= proc_dirty_background_ratio_handler,
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
 	},
@@ -1764,7 +1834,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirty_background_bytes,
 		.maxlen		= sizeof(dirty_background_bytes),
 		.mode		= 0644,
-		.proc_handler	= dirty_background_bytes_handler,
+		.proc_handler	= proc_dirty_background_bytes_handler,
 		.extra1		= &one_ul,
 	},
 	{
@@ -1772,7 +1842,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &vm_dirty_ratio,
 		.maxlen		= sizeof(vm_dirty_ratio),
 		.mode		= 0644,
-		.proc_handler	= dirty_ratio_handler,
+		.proc_handler	= proc_dirty_ratio_handler,
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
 	},
@@ -1781,7 +1851,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &vm_dirty_bytes,
 		.maxlen		= sizeof(vm_dirty_bytes),
 		.mode		= 0644,
-		.proc_handler	= dirty_bytes_handler,
+		.proc_handler	= proc_dirty_bytes_handler,
 		.extra1		= &dirty_bytes_min,
 	},
 	{
@@ -1789,14 +1859,14 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirty_writeback_interval,
 		.maxlen		= sizeof(dirty_writeback_interval),
 		.mode		= 0644,
-		.proc_handler	= dirty_writeback_centisecs_handler,
+		.proc_handler	= proc_dirty_writeback_centisecs_handler,
 	},
 	{
 		.procname	= "dirty_expire_centisecs",
 		.data		= &dirty_expire_interval,
 		.maxlen		= sizeof(dirty_expire_interval),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dirty_expire_centisecs_handler,
 		.extra1		= &zero,
 	},
 	{
@@ -1804,7 +1874,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirtytime_expire_interval,
 		.maxlen		= sizeof(dirtytime_expire_interval),
 		.mode		= 0644,
-		.proc_handler	= dirtytime_interval_handler,
+		.proc_handler	= proc_dirtytime_interval_handler,
 		.extra1		= &zero,
 	},
 	{

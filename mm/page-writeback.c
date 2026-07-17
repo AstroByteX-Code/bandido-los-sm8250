@@ -83,7 +83,7 @@ int dirty_background_ratio;
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long dirty_background_bytes;
 #else
-unsigned long dirty_background_bytes = 25 * 1024 * 1024;
+unsigned long dirty_background_bytes = 64 * 1024 * 1024;
 #endif
 
 /*
@@ -108,20 +108,20 @@ int vm_dirty_ratio;
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 unsigned long vm_dirty_bytes;
 #else
-unsigned long vm_dirty_bytes = 50 * 1024 * 1024;
+unsigned long vm_dirty_bytes = 256 * 1024 * 1024;
 #endif
 
 /*
  * The interval between `kupdate'-style writebacks
  */
-unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
+unsigned int dirty_writeback_interval = 30 * 100; /* centiseconds (30 seconds) */
 
 EXPORT_SYMBOL_GPL(dirty_writeback_interval);
 
 /*
  * The longest time for which data is allowed to remain dirty
  */
-unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
+unsigned int dirty_expire_interval = 20 * 100; /* centiseconds (20 seconds) */
 
 /*
  * Flag that makes the machine dump writes/reads and block dirtyings.
