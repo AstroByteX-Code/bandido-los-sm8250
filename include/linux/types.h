@@ -234,5 +234,11 @@ struct callback_head {
 typedef void (*rcu_callback_t)(struct rcu_head *head);
 typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
 
+/* Function pointer types for sort() and sort_r() */
+typedef int  (*cmp_func_t)(const void *a, const void *b);
+typedef int  (*cmp_r_func_t)(const void *a, const void *b, const void *priv);
+typedef void (*swap_func_t)(void *a, void *b, int size);
+typedef void (*swap_r_func_t)(void *a, void *b, int size, const void *priv);
+
 #endif /*  __ASSEMBLY__ */
 #endif /* _LINUX_TYPES_H */
