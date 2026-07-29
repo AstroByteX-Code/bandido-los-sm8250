@@ -88,6 +88,13 @@ bool task_is_hqm(struct task_struct *p)
 	struct task_struct *tsk;
 	bool ret;
 
+	if (p && (strnstr(p->comm, "Hqm", 16) || strnstr(p->comm, "hqm", 16))) {
+		struct task_struct *gl = p->group_leader;
+		if (gl && (strcmp(gl->comm, "system_server") == 0 ||
+			   strnstr(gl->comm, "hqm", 16)))
+			return true;
+	}
+
 	rcu_read_lock();
 	tsk = READ_ONCE(hqm_tsk);
 	ret = tsk && same_thread_group(p, tsk);
@@ -101,6 +108,13 @@ bool task_is_hyper(struct task_struct *p)
 {
 	struct task_struct *tsk;
 	bool ret;
+
+	if (p && (strnstr(p->comm, "HyPer", 16) || strnstr(p->comm, "hyper", 16))) {
+		struct task_struct *gl = p->group_leader;
+		if (gl && (strcmp(gl->comm, "system_server") == 0 ||
+			   strnstr(gl->comm, "hyper", 16)))
+			return true;
+	}
 
 	rcu_read_lock();
 	tsk = READ_ONCE(hyper_tsk);
