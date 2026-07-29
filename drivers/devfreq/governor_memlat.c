@@ -325,7 +325,46 @@ static int devfreq_memlat_get_freq(struct devfreq *df,
 	return 0;
 }
 
-gov_attr(ratio_ceil, 1U, 20000U);
+show_attr(ratio_ceil)
+
+/*
+ * Bandido: Custom store for ratio_ceil that enforces per-device maximums
+ * even if the ROM's init scripts try to write larger values via sysfs.
+ * Caps match the values set in register_common(), derived from PMU stats.
+ */
+static unsigned int memlat_ratio_ceil_cap(struct devfreq *df, unsigned int val)
+{
+	const char *devname = dev_name(df->dev.parent);
+
+	if (strstr(devname, "cpu0-cpu-l3-lat"))
+		return min(val, 150U);
+	if (strstr(devname, "cpu4-cpu-l3-lat"))
+		return min(val, 400U);
+	if (strstr(devname, "cpu7-cpu-l3-lat"))
+		return min(val, 1000U);
+	return val;
+}
+
+static ssize_t store_ratio_ceil(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	struct memlat_node *hw = df->data;
+	int ret;
+	unsigned int val;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+	val = max(val, 1U);
+	val = min(val, 20000U);
+	val = memlat_ratio_ceil_cap(df, val);
+	hw->ratio_ceil = val;
+	return count;
+}
+
+static DEVICE_ATTR(ratio_ceil, 0644, show_ratio_ceil, store_ratio_ceil);
 gov_attr(stall_floor, 0U, 100U);
 gov_attr(wb_pct_thres, 0U, 100U);
 gov_attr(wb_filter_ratio, 0U, 50000U);
@@ -496,7 +535,34 @@ static struct memlat_node *register_common(struct device *dev,
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
-	node->ratio_ceil = 10;
+	/*
+	 * Bandido: Per-device ratio_ceil tuned from statistical analysis of
+	 * memlat PMU samples collected during idle (screen-off) and active
+	 * (app launch + UI scroll benchmark) scenarios on SM-G781B (r8q).
+	 *
+	 * Strategy: ratio_ceil > active_P99 (to allow boost during real use)
+	 *           ratio_ceil < idle_P50  (to suppress boost during idle)
+	 *
+	 * Device             idle_P50  active_P99  chosen_ceil
+	 * cpu0-cpu-l3-lat       34        122          150
+	 * cpu4-cpu-l3-lat        9        291          400
+	 * cpu7-cpu-l3-lat       13        921         1000
+	 * (all others keep default 10, userspace sets appropriate values)
+	 */
+	if (hw->of_node) {
+		const char *name = hw->of_node->name;
+
+		if (strstr(name, "cpu0-cpu-l3"))
+			node->ratio_ceil = 150;
+		else if (strstr(name, "cpu4-cpu-l3"))
+			node->ratio_ceil = 400;
+		else if (strstr(name, "cpu7-cpu-l3"))
+			node->ratio_ceil = 1000;
+		else
+			node->ratio_ceil = 10;
+	} else {
+		node->ratio_ceil = 10;
+	}
 	node->wb_pct_thres = 100;
 	node->wb_filter_ratio = 25000;
 	node->hw = hw;
