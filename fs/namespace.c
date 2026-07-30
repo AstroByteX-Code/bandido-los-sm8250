@@ -39,7 +39,9 @@
 unsigned int sysctl_mount_max __read_mostly = 100000;
 
 /* @fs.sec -- c4d165e8cb5ea1cc14cdedb9eab23efd642d4d5f -- */
+#ifdef CONFIG_PROC_STLOG
 static unsigned int sys_umount_trace_status;
+#endif
 
 static unsigned int m_hash_mask __read_mostly;
 static unsigned int m_hash_shift __read_mostly;
@@ -109,6 +111,7 @@ enum {
 	UMOUNT_STATUS_MAX
 };
 
+#ifdef CONFIG_PROC_STLOG
 static const char *umount_exit_str[UMOUNT_STATUS_MAX] = {
 	"ADDED_TASK", "REMAIN_NS", "REMAIN_CNT", "DELAY_TASK"
 };
@@ -151,6 +154,10 @@ static inline void sys_umount_trace_print(struct mount *mnt, int flags)
 			flags, umount_exit_str[sys_umount_trace_status]);
 	}
 }
+#else
+static inline void sys_umount_trace_set_status(unsigned int status) {}
+static inline void sys_umount_trace_print(struct mount *mnt, int flags) {}
+#endif
 
 static inline struct hlist_head *mp_hash(struct dentry *dentry)
 {
