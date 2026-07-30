@@ -11,7 +11,7 @@ export LLVM=1 LLVM_IAS=1
 
 #setting toolchain path
 ROOT_DIR="/home/me/kernelupgrade"
-TC_DIR="$ROOT_DIR/toolchains/llvm-22.1.8-x86_64"
+TC_DIR="$ROOT_DIR/toolchains/llvm-23.1.0-rc2-x86_64"
 export PATH="$TC_DIR/bin:$PATH"
 
 ##########################################################
@@ -146,9 +146,9 @@ if [[ -f "$IMAGE" ]]; then
 		fi
 	done
 
-	# Wait for TWRP to be fully ready before pushing/installing
-	echo "Waiting for TWRP to be fully ready..."
-	while ! adb shell "twrp help" 2>/dev/null | grep -q "TWRP"; do
+	# Wait for Recovery (TWRP or OrangeFox) to be fully ready before pushing/installing
+	echo "Waiting for Recovery (TWRP / OrangeFox) to be fully ready..."
+	while ! adb shell "twrp help 2>&1 || fox help 2>&1" | grep -qE "TWRP|OrangeFox"; do
 		sleep 2
 	done
 
@@ -167,17 +167,23 @@ if [[ -f "$IMAGE" ]]; then
 		exit 1
 	fi
 
-	# Wait for TWRP daemon to be fully ready and responsive
-	echo "Waiting for TWRP daemon to be responsive..."
-	while ! adb shell "twrp print 1" 2>/dev/null | grep -q "Done processing"; do
+	# Detect installer command (fox or twrp)
+	REC_CMD="twrp"
+	if adb shell "which fox" &>/dev/null; then
+		REC_CMD="fox"
+	fi
+
+	# Wait for recovery daemon to be fully ready and responsive
+	echo "Waiting for recovery daemon ($REC_CMD) to be responsive..."
+	while ! adb shell "$REC_CMD print 1" 2>/dev/null | grep -q "Done processing"; do
 		sleep 1
 	done
 
-	echo "Installing kernel via TWRP..."
-	INSTALL_OUTPUT=$(adb shell "twrp install /tmp/$KERNELZIP" 2>&1)
+	echo "Installing kernel via $REC_CMD..."
+	INSTALL_OUTPUT=$(adb shell "$REC_CMD install /tmp/$KERNELZIP" 2>&1)
 	echo "$INSTALL_OUTPUT"
 	if echo "$INSTALL_OUTPUT" | grep -qE "Error installing|Unable to locate|Failed"; then
-		echo "ERROR: Failed to install kernel via TWRP!"
+		echo "ERROR: Failed to install kernel via $REC_CMD!"
 		exit 1
 	fi
 	echo -e "\a"
