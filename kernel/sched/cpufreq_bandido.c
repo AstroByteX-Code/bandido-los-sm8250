@@ -62,11 +62,6 @@ struct sugov_cpu {
 	unsigned long		bw_dl;
 	unsigned long		min;
 	unsigned long		max;
-
-	/* The field below is for single-CPU policies only: */
-#ifdef CONFIG_NO_HZ_COMMON
-	unsigned long		saved_idle_calls;
-#endif
 };
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
@@ -258,18 +253,7 @@ static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 }
 #endif
 
-#ifdef CONFIG_NO_HZ_COMMON
-static bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu)
-{
-	unsigned long idle_calls = tick_nohz_get_idle_calls_cpu(sg_cpu->cpu);
-	bool ret = idle_calls == sg_cpu->saved_idle_calls;
 
-	sg_cpu->saved_idle_calls = idle_calls;
-	return ret;
-}
-#else
-static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
-#endif
 
 static bool sugov_iowait_reset(struct sugov_cpu *sg_cpu, u64 time,
 			       bool set_iowait_boost)
@@ -284,6 +268,8 @@ static bool sugov_iowait_reset(struct sugov_cpu *sg_cpu, u64 time,
 
 	return true;
 }
+
+
 
 static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 			       unsigned int flags)
@@ -348,14 +334,11 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	unsigned long util, max;
 	unsigned int next_f;
-	bool busy;
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
 	ignore_dl_rate_limit(sg_cpu, sg_policy);
-
-	busy = !sg_policy->need_freq_update && sugov_cpu_is_busy(sg_cpu);
 
 	sg_cpu->util = util = sugov_get_util(sg_cpu);
 	max = sg_cpu->max;
@@ -364,15 +347,6 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
 	sugov_walt_adjust(sg_cpu, &util, &max);
 	next_f = get_next_freq(sg_policy, util, max);
-
-	/*
-	 * Busy protection: Do not reduce frequency if the CPU has not been
-	 * idle recently, UNLESS 1ms has already passed since the last update.
-	 */
-	if (busy && next_f < sg_policy->next_freq && (time - sg_policy->last_freq_update_time) < 1000000) {
-		next_f = sg_policy->next_freq;
-		sg_policy->cached_raw_freq = 0;
-	}
 
 	/*
 	 * Fast-Ramp: Bypass the rate limit if the next frequency is
@@ -435,10 +409,10 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	next_f = sugov_next_freq_shared(sg_cpu, time);
 
 	/*
-	 * Busy protection shared: avoid ramp-down if core is saturated and < 1ms holds.
+	 * Busy protection shared: avoid ramp-down if < 1ms holds.
 	 * This prevents premature frequency drops during bursty but busy periods.
 	 */
-	if (sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq && 
+	if (next_f < sg_policy->next_freq && 
 	    (time - sg_policy->last_freq_update_time) < 1000000) {
 		next_f = sg_policy->next_freq;
 		sg_policy->cached_raw_freq = 0;
