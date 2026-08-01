@@ -479,8 +479,10 @@ ssize_t LZ4_arm64_decompress_safe(const void *source,
                                          &srcPtr,
                                          source + inputSize - LZ4_FAST_MARGIN,
                                          dip);
-                if (ret)
-                        return -EIO;
+                if (ret) {
+                        dstPtr = dest;
+                        srcPtr = source;
+                }
         }
 #endif
         /* Finish in safe */
@@ -505,8 +507,10 @@ ssize_t LZ4_arm64_decompress_safe_partial(const void *source,
                                          &srcPtr,
                                          source + inputSize - LZ4_FAST_MARGIN,
                                          dip);
-                if (ret)
-                        return -EIO;
+                if (ret) {
+                        dstPtr = dest;
+                        srcPtr = source;
+                }
         }
 #endif
         /* Finish in safe */

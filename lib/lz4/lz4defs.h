@@ -275,4 +275,8 @@ typedef enum { decode_full_block = 0, partial_decode = 1 } earlyEnd_directive;
 
 #define LZ4_STATIC_ASSERT(c)	BUILD_BUG_ON(!(c))
 
+#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
+#include "lz4armv8/lz4accel.h"
+#endif
+
 #endif
