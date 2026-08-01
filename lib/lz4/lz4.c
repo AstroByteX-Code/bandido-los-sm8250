@@ -102,7 +102,6 @@
 #  define LZ4_STATIC_LINKING_ONLY
 #endif
 #include "lz4.h"
-#include "lz4armv8/lz4accel.h"
 #undef current
 /* see also "memory routines" below */
 
@@ -174,6 +173,28 @@
 *  Memory routines
 **************************************/
 
+#include <linux/vmalloc.h>
+
+#ifndef LZ4_HEAPMODE
+#define LZ4_HEAPMODE 1
+#endif
+
+#ifndef LZ4HC_HEAPMODE
+#define LZ4HC_HEAPMODE 1
+#endif
+
+#ifndef ALLOC
+#define ALLOC(s) vmalloc(s)
+#endif
+
+#ifndef FREEMEM
+#define FREEMEM(p) vfree(p)
+#endif
+
+#ifndef ALLOC_AND_ZERO
+#define ALLOC_AND_ZERO(s) vzalloc(s)
+#endif
+
 #if ! LZ4_FREESTANDING
 #  include <linux/string.h>   /* memset, memcpy */
 #endif
@@ -181,6 +202,7 @@
 #  define LZ4_memset(p,v,s) memset((p),(v),(s))
 #endif
 #define MEM_INIT(p,v,s)   LZ4_memset((p),(v),(s))
+#undef current
 
 
 /*-************************************
@@ -384,12 +406,7 @@ static const int      dec64table[8] = {0, 0, 0, -1, -4,  1, 2, 3};
 #ifndef LZ4_FAST_DEC_LOOP
 #  if defined __i386__ || defined _M_IX86 || defined __x86_64__ || defined _M_X64
 #    define LZ4_FAST_DEC_LOOP 1
-#  elif defined(__aarch64__) && defined(__APPLE__)
-#    define LZ4_FAST_DEC_LOOP 1
-#  elif defined(__aarch64__) && !defined(__clang__)
-     /* On non-Apple aarch64, we disable this optimization for clang because
-      * on certain mobile chipsets, performance is reduced with clang. For
-      * more information refer to https://github.com/lz4/lz4/pull/707 */
+#  elif defined(__aarch64__)
 #    define LZ4_FAST_DEC_LOOP 1
 #  else
 #    define LZ4_FAST_DEC_LOOP 0
@@ -1400,6 +1417,7 @@ int LZ4_compress_destSize_extState(void* state, const char* src, char* dst, int*
 
 int LZ4_compress_destSize(const char* src, char* dst, int* srcSizePtr, int targetDstSize)
 {
+    int result;
 #if (LZ4_HEAPMODE)
     LZ4_stream_t* const ctx = (LZ4_stream_t*)ALLOC(sizeof(LZ4_stream_t));   /* malloc-calloc always properly aligned */
     if (ctx == NULL) return 0;
@@ -1408,7 +1426,7 @@ int LZ4_compress_destSize(const char* src, char* dst, int* srcSizePtr, int targe
     LZ4_stream_t* const ctx = &ctxBody;
 #endif
 
-    int result = LZ4_compress_destSize_extState_internal(ctx, src, dst, srcSizePtr, targetDstSize, 1);
+    result = LZ4_compress_destSize_extState_internal(ctx, src, dst, srcSizePtr, targetDstSize, 1);
 
 #if (LZ4_HEAPMODE)
     FREEMEM(ctx);
@@ -2360,50 +2378,12 @@ LZ4_decompress_generic(
                                     partialDecoding, dict, lowPrefix, dictStart, dictSize);
 }
 
-#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
-ssize_t LZ4_arm64_decompress_safe(const void *source,
-                             void *dest,
-                             size_t inputSize,
-                             size_t outputSize,
-                             bool dip)
-{
-        uint8_t         *dstPtr = dest;
-        const uint8_t   *srcPtr = source;
-        ssize_t         ret;
-
-#ifdef __ARCH_HAS_LZ4_ACCELERATOR
-        /* Go fast if we can, keeping away from the end of buffers */
-        if (outputSize > LZ4_FAST_MARGIN && inputSize > LZ4_FAST_MARGIN && lz4_decompress_accel_enable()) {
-                ret = lz4_decompress_asm(&dstPtr, dest,
-                                         dest + outputSize - LZ4_FAST_MARGIN,
-                                         &srcPtr,
-                                         source + inputSize - LZ4_FAST_MARGIN,
-                                         dip);
-                if (ret) {
-                        dstPtr = dest;
-                        srcPtr = source;
-                }
-        }
-#endif
-        /* Finish in safe */
-        return __LZ4_decompress_generic(source, dest, srcPtr, dstPtr, (int)inputSize, (int)outputSize, decode_full_block, noDict, (BYTE *)dest, NULL, 0);
-}
-#endif
-
-
-/*===== Instantiate the API decoding functions. =====*/
-
 LZ4_FORCE_O2
 int LZ4_decompress_safe(const char* source, char* dest, int compressedSize, int maxDecompressedSize)
 {
-#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
-    return (int)LZ4_arm64_decompress_safe(source, dest,
-                                          (size_t)compressedSize, (size_t)maxDecompressedSize, false);
-#else
     return LZ4_decompress_generic(source, dest, compressedSize, maxDecompressedSize,
                                   decode_full_block, noDict,
                                   (BYTE*)dest, NULL, 0);
-#endif
 }
 
 LZ4_FORCE_O2

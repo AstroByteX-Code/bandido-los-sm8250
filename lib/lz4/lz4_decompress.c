@@ -34,8 +34,6 @@
  *	Dependencies
  **************************************/
 #include <linux/lz4.h>
-#include "lz4defs.h"
-#include "lz4armv8/lz4accel.h"
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

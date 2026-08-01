@@ -35,8 +35,23 @@
  *	Sven Schmidt <4sschmid@informatik.uni-hamburg.de>
  */
 
-#include <asm/unaligned.h>
-#include <linux/string.h>	 /* memset, memcpy */
+#include <linux/vmalloc.h>
+
+#ifndef LZ4_HEAPMODE
+#define LZ4_HEAPMODE 1
+#endif
+
+#ifndef LZ4HC_HEAPMODE
+#define LZ4HC_HEAPMODE 1
+#endif
+
+#ifndef ALLOC
+#define ALLOC(s) vmalloc(s)
+#endif
+
+#ifndef FREEMEM
+#define FREEMEM(p) vfree(p)
+#endif
 
 #define FORCE_INLINE __always_inline
 
@@ -274,9 +289,5 @@ typedef enum { endOnOutputSize = 0, endOnInputSize = 1 } endCondition_directive;
 typedef enum { decode_full_block = 0, partial_decode = 1 } earlyEnd_directive;
 
 #define LZ4_STATIC_ASSERT(c)	BUILD_BUG_ON(!(c))
-
-#if defined(CONFIG_ARM64) && defined(CONFIG_KERNEL_MODE_NEON)
-#include "lz4armv8/lz4accel.h"
-#endif
 
 #endif
