@@ -1993,9 +1993,6 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
 		struct page *page = lru_to_page(page_list);
 		int lru;
 
-		if (unlikely(!page))
-			break;
-
 		VM_BUG_ON_PAGE(PageLRU(page), page);
 		list_del(&page->lru);
 		if (unlikely(!page_evictable(page))) {
@@ -4718,11 +4715,6 @@ static int evict_pages(struct lruvec *lruvec, struct scan_control *sc, int swapp
 	__count_memcg_events(memcg, item, reclaimed);
 
 	spin_unlock_irq(&pgdat->lru_lock);
-
-	list_for_each_entry(page, &list, lru) {
-		ClearPageActive(page);
-		ClearPageLRU(page);
-	}
 
 	mem_cgroup_uncharge_list(&list);
 	free_unref_page_list(&list);
