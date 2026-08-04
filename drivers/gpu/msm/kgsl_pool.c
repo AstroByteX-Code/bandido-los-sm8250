@@ -396,7 +396,7 @@ void kgsl_pool_free_page(struct page *page)
 	if (!kgsl_pool_max_pages ||
 			(kgsl_pool_size_total() < kgsl_pool_max_pages)) {
 		pool = _kgsl_get_pool_from_order(page_order);
-		if (pool && (atomic_read(&pool->page_count) < pool->max_pages)) {
+		if (pool && (atomic_read(&pool->page_count) < pool->reserved_pages)) {
 			_kgsl_pool_add_page(pool, page);
 			return;
 		}
