@@ -433,7 +433,7 @@ struct lruvec {
 	/* to concurrently iterate lru_gen_mm_list */
 	struct lru_gen_mm_state		mm_state;
 #endif
-#ifdef CONFIG_MEMCG
+#if defined(CONFIG_MEMCG) || defined(CONFIG_LRU_GEN)
 	struct pglist_data *pgdat;
 #endif
 };
@@ -995,7 +995,7 @@ extern void lruvec_init(struct lruvec *lruvec);
 
 static inline struct pglist_data *lruvec_pgdat(struct lruvec *lruvec)
 {
-#ifdef CONFIG_MEMCG
+#if defined(CONFIG_MEMCG) || defined(CONFIG_LRU_GEN)
 	return lruvec->pgdat;
 #else
 	return container_of(lruvec, struct pglist_data, lruvec);

@@ -2866,7 +2866,8 @@ static struct lruvec *get_lruvec(struct mem_cgroup *memcg, int nid)
 
 #ifdef CONFIG_MEMCG
 	if (memcg) {
-		struct lruvec *lruvec = &memcg->nodeinfo[nid]->lruvec;
+		struct mem_cgroup_per_node *mz = memcg->nodeinfo[nid];
+		struct lruvec *lruvec = &mz->lruvec;
 
 		/* for hotadd_new_pgdat() */
 		if (!lruvec->pgdat)
@@ -2877,7 +2878,7 @@ static struct lruvec *get_lruvec(struct mem_cgroup *memcg, int nid)
 #endif
 	VM_BUG_ON(!mem_cgroup_disabled());
 
-	return pgdat ? &pgdat->lruvec : NULL;
+	return &pgdat->lruvec;
 }
 
 static int get_swappiness(struct lruvec *lruvec, struct scan_control *sc)
