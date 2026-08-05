@@ -167,26 +167,19 @@ if [[ -f "$IMAGE" ]]; then
 		exit 1
 	fi
 
-	# Detect installer command (fox or twrp)
-	REC_CMD="twrp"
-	if adb shell "which fox" &>/dev/null; then
-		REC_CMD="fox"
-	fi
-
-	# Wait for recovery daemon to be fully ready and responsive
-	echo "Waiting for recovery daemon ($REC_CMD) to be responsive..."
-	while ! adb shell "$REC_CMD print 1" 2>/dev/null | grep -q "Done processing"; do
-		sleep 1
-	done
-
-	echo "Installing kernel via $REC_CMD..."
-	INSTALL_OUTPUT=$(adb shell "$REC_CMD install /tmp/$KERNELZIP" 2>&1)
-	echo "$INSTALL_OUTPUT"
-	if echo "$INSTALL_OUTPUT" | grep -qE "Error installing|Unable to locate|Failed"; then
-		echo "ERROR: Failed to install kernel via $REC_CMD!"
+	echo "Installing kernel via TWRP/OrangeFox..."
+	INSTALL_LOG=$(mktemp)
+	adb shell "twrp install /tmp/$KERNELZIP" 2>&1 | tee "$INSTALL_LOG"
+	if grep -qE "Error installing|Unable to locate|Failed" "$INSTALL_LOG"; then
+		rm -f "$INSTALL_LOG"
+		echo "ERROR: Failed to install kernel via TWRP/OrangeFox!"
 		exit 1
 	fi
+	rm -f "$INSTALL_LOG"
 	echo -e "\a"
+	echo "Installation completed! Rebooting to system..."
+	sleep 1
+	adb shell "twrp reboot"
 else
 	echo -e "\nERROR. Something broke along the way since $IMAGE is not there\n"
 fi
