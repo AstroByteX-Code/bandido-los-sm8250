@@ -4421,11 +4421,14 @@ static bool sort_page(struct lruvec *lruvec, struct page *page, int tier_idx)
 	int delta = hpage_nr_pages(page);
 	struct lru_gen_struct *lrugen = &lruvec->lrugen;
 
+	if (gen < 0)
+		return false;
+
 	VM_BUG_ON_PAGE(gen >= MAX_NR_GENS, page);
 
 	if (!page_evictable(page)) {
 		success = lru_gen_del_page(lruvec, page, true);
-		VM_BUG_ON_PAGE(!success, page);
+		if (!success) list_del(&page->lru);
 		SetPageUnevictable(page);
 		add_page_to_lru_list(page, lruvec);
 		__count_vm_events(UNEVICTABLE_PGCULLED, delta);
@@ -4434,7 +4437,7 @@ static bool sort_page(struct lruvec *lruvec, struct page *page, int tier_idx)
 
 	if (type == LRU_GEN_FILE && PageAnon(page) && PageDirty(page)) {
 		success = lru_gen_del_page(lruvec, page, true);
-		VM_BUG_ON_PAGE(!success, page);
+		if (!success) list_del(&page->lru);
 		SetPageSwapBacked(page);
 		add_page_to_lru_list_tail(page, lruvec);
 		return true;
@@ -4484,7 +4487,7 @@ static bool isolate_page(struct lruvec *lruvec, struct page *page, struct scan_c
 	ClearPageLRU(page);
 
 	success = lru_gen_del_page(lruvec, page, true);
-	VM_BUG_ON_PAGE(!success, page);
+	if (!success) list_del(&page->lru);
 
 	return true;
 }

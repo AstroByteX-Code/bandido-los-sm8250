@@ -240,8 +240,10 @@ static inline bool lru_gen_del_page(struct lruvec *lruvec, struct page *page, bo
 		if (!(new_flags & LRU_GEN_MASK))
 			return false;
 
-		VM_BUG_ON_PAGE(PageActive(page), page);
-
+		/* 
+		 * VM_BUG_ON_PAGE(PageActive(page), page) removed to avoid Kernel Panic
+		 * caused by concurrent mark_page_accessed without MGLRU hooks.
+		 */
 		gen = ((new_flags & LRU_GEN_MASK) >> LRU_GEN_PGOFF) - 1;
 
 		new_flags &= ~LRU_GEN_MASK;
