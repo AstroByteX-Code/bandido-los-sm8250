@@ -1,0 +1,48 @@
+name: Build Bandido Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        device: [x1q, y2q, z3q]
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libssl-dev \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            binutils-aarch64-linux-gnu \
+            python3 adb zip curl xz-utils \
+            llvm lld dwarves git unzip wget zstd jq ccache
+
+      - name: Setup LLVM 23.1.0-rc2 toolchain
+        run: |
+          mkdir -p toolchains/llvm-23.1.0-rc2
+          CLANG_TARBALL="llvm-project-23.1.0-rc2.src.tar.xz"
+          CLANG_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0-rc2/${CLANG_TARBALL}"
+          wget -O "toolchains/${CLANG_TARBALL}" "$CLANG_URL"
+          tar -xf "toolchains/${CLANG_TARBALL}" -C toolchains/llvm-23.1.0-rc2 --strip-components=1
+          rm "toolchains/${CLANG_TARBALL}"
+
+      - name: Build kernel for ${{ matrix.device }}
+        run: |
+          chmod +x build.sh
+          ./build.sh ${{ matrix.device }} toolchains/llvm-23.1.0-rc2
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bandido-Kernel-${{ matrix.device }}
+          path: "*.zip"
