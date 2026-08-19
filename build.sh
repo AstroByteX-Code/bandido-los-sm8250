@@ -21,9 +21,15 @@ export KCFLAGS="-Wno-error=pointer-to-enum-cast \
 
 DEFCONFIGS="arch/$ARCH/configs/vendor/kona-sec-perf_defconfig \
             arch/$ARCH/configs/vendor/samsung/${DEVICE}.config \
-            arch/$ARCH/configs/vendor/samsung/bandido/ksu.config"
+            arch/$ARCH/configs/vendor/samsung/bandido/ksu.config \
+            arch/$ARCH/configs/temp_defconfig"
 
 mkdir -p "$OUT_DIR"
+
+# Force ThinLTO only (disable full LTO) by appending to a temp defconfig
+echo 'CONFIG_LTO_CLANG=y' > arch/arm64/configs/temp_defconfig
+echo 'CONFIG_THINLTO=y' >> arch/arm64/configs/temp_defconfig
+echo '# CONFIG_LTO_CLANG_FULL is not set' >> arch/arm64/configs/temp_defconfig
 
 # Merge defconfigs
 ./scripts/kconfig/merge_config.sh -m -O "$OUT_DIR" $DEFCONFIGS
