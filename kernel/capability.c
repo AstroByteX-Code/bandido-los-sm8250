@@ -17,7 +17,6 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
-#include <linux/kernelsu.h>
 #include <linux/user_namespace.h>
 #include <linux/uaccess.h>
 
