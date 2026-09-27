@@ -39,3 +39,6 @@ obj-$(CONFIG_INTEGRITY)			+= integrity/
 
 # MST driver
 obj-$(CONFIG_MST_LDO)	  += mstdrv/
+
+# Baseband-guard
+obj-$(CONFIG_BBG) += baseband-guard/

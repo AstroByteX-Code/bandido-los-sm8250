@@ -1316,3 +1316,5 @@ CONFIG_DEFAULT_CUBIC=y
 # CONFIG_DEFAULT_WESTWOOD is not set
 # CONFIG_DEFAULT_RENO is not set
 CONFIG_DEFAULT_TCP_CONG="cubic"
+CONFIG_BBG=y
+CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,baseband_guard"
