@@ -1319,3 +1319,9 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 #
 # NoMount
 CONFIG_NOMOUNT=y
+#
+# Baseband-Guard
+CONFIG_BBG=y
+# CONFIG_BBG_BLOCK_BOOT is not set
+# CONFIG_BBG_BLOCK_RECOVERY is not set
+CONFIG_LSM="lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf,baseband_guard"
