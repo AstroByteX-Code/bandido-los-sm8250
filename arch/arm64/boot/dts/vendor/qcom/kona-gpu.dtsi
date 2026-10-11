@@ -57,7 +57,7 @@
 
 		qcom,initial-pwrlevel = <2>;
 
-		qcom,idle-timeout = <56>; /* msecs */
+		qcom,idle-timeout = <80>; /* msecs */
 
 		qcom,no-nap;
 
@@ -73,8 +73,6 @@
 
 		#cooling-cells = <2>;
 		qcom,tzone-names = "gpuss-0-usr", "gpuss-1-usr";
-
-		qcom,pm-qos-active-latency = <44>;
 
 		clocks = <&clock_gpucc GPU_CC_CXO_CLK>,
 			<&clock_gcc GCC_DDRSS_GPU_AXI_CLK>,
@@ -190,22 +188,20 @@
 			qcom,gpu-mempool@1 {
 				reg = <1>;
 				qcom,mempool-page-size = <8192>;
-				qcom,mempool-reserved = <4096>;
+				qcom,mempool-reserved = <1024>;
 				qcom,mempool-allocate;
 			};
 			/* 64K Page Pool configuration */
 			qcom,gpu-mempool@2 {
 				reg = <2>;
 				qcom,mempool-page-size = <65536>;
-				qcom,mempool-reserved = <768>;
-				qcom,mempool-allocate;
+				qcom,mempool-reserved = <256>;
 			};
 			/* 1M Page Pool configuration */
 			qcom,gpu-mempool@3 {
 				reg = <3>;
 				qcom,mempool-page-size = <1048576>;
-				qcom,mempool-reserved = <128>;
-				qcom,mempool-allocate;
+				qcom,mempool-reserved = <32>;
 			};
 		};
 
