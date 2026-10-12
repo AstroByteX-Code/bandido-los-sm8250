@@ -6,7 +6,7 @@ KERNEL_DIR=$(pwd)
 DEVICE="$1"
 OUT_DIR="out/$DEVICE"
 AK3_DIR="$KERNEL_DIR/AnyKernel3"
-TC_DIR="$(pwd)/llvm-23.2.1"
+TC_DIR="$(pwd)/llvm-23.1.3"
 
 git submodule update --init --recursive
 
